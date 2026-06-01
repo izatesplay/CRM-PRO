@@ -1,0 +1,6 @@
+{
+  "name": "Enterprise CRM System",
+  "description": "سیستم مدیریت ارتباط با مشتریان (CRM) با قابلیت مدیریت سرنخ‌ها، فرصت‌ها، فعالیت‌ها، یادداشت‌ها و تنظیمات پیشرفته.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

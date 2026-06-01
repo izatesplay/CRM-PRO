@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Premium Inverted light theme mapping */
+  --color-slate-50: #0f172a;  /* Deep slate black */
+  --color-slate-100: #1e293b; /* Strong dark gray */
+  --color-slate-200: #334155; /* Solid gray text */
+  --color-slate-300: #475569; /* Medium gray text */
+  --color-slate-400: #64748b; /* Gray text helper */
+  --color-slate-500: #8da2bb; /* Light muted slate blue */
+  --color-slate-600: #cbd5e1; /* Elegant light outline gray */
+  --color-slate-700: #e2e8f0; /* Gentle slate divider */
+  --color-slate-800: #f1f5f9; /* Warm dashboard section gray */
+  --color-slate-900: #f8fafc; /* Sleek workspace backdrop */
+  --color-slate-950: #ffffff; /* Outstanding white panel base */
+}
+
+/* Global Body Styling */
+body {
+  font-family: var(--font-sans);
+  direction: rtl;
+  background-color: #f3f5f9;
+  color: #1e293b;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Enterprise App Base Backdrop */
+#enterprise-crm-app {
+  background-color: #f3f5f9;
+  color: #1e293b;
+}
+
+/* Headers and Navigation layout custom adjustments */
+header, #dashboard-navbar {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Main title color scheme matching */
+header h1, header h1 span, h1, h2, h3, h4, h5 {
+  color: #0f172a !important;
+}
+
+header p {
+  color: #475569 !important;
+}
+
+/* Pristine Panel Containers styling */
+.glass-panel {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.03), 0 2px 6px -1px rgba(15, 23, 42, 0.02) !important;
+  border-radius: 1rem;
+}
+
+.glass-panel-heavy {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.05), 0 10px 10px -5px rgba(15, 23, 42, 0.03) !important;
+  border-radius: 1.25rem;
+}
+
+/* Correct border configurations to light slate gray instead of dark or white */
+.border-white\/5, .border-white\/10, .border-white\/20, .border-white\/30, .border-slate-800, [class*="border-white"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Support active highlights or checked indicators */
+.bg-emerald-500\/5 {
+  background-color: rgba(16, 185, 129, 0.06) !important;
+}
+.bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+.border-emerald-500\/50 {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+.ring-emerald-500\/10 {
+  --tw-ring-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+/* Active folder selection highlight */
+.border-emerald-500\/40 {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+
+/* White elements must match text appropriately on colors */
+.text-white {
+  color: #ffffff !important;
+}
+
+/* Forms input, Select box, Textarea fields */
+input, select, textarea, .glass-input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease-in-out;
+  color-scheme: light !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+input:focus, select:focus, textarea:focus, .glass-input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12) !important;
+  outline: none !important;
+  background-color: #ffffff !important;
+}
+
+option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Button Styling - Bold, Clean with Emerald Mint Pattern */
+.glass-btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: 1px solid #059669 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.15) !important;
+  border-radius: 0.75rem;
+  color: #ffffff !important;
+  cursor: pointer;
+  transition: all 0.2s ease !important;
+}
+
+.glass-btn-primary:hover:not(:disabled) {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.25) !important;
+}
+
+.glass-btn-secondary {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0.75rem;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: all 0.15s ease !important;
+}
+
+.glass-btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* Tables styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+tr {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+tr:hover {
+  background-color: #f8fafc !important;
+}
+
+thead, th {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  text-align: right;
+}
+
+/* Interactive elements */
+strong, b {
+  color: #0f172a !important;
+}
+
+.text-amber-400 {
+  color: #ca8a04 !important; /* Rich golden star icon colors */
+}
+
+/* Calendar View specific style corrections */
+#activity-calendar-board button {
+  color: #1e293b;
+}
+
+#activity-calendar-board .grid-cols-7 button:hover {
+  background-color: #f1f5f9 !important;
+}
+
+#activity-calendar-board .bg-emerald-500\/10 {
+  background-color: #e6fcf5 !important;
+  border-color: #a3e635;
+}
+
+/* Beautiful custom elegant scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.18s ease-out forwards;
+}
