@@ -18,7 +18,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const [password, setPassword] = useState(""); // UI only
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "consultant" | "agent" | "supervisor">("consultant");
+  const [role, setRole] = useState<"admin" | "consultant" | "supervisor">("consultant");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -42,6 +42,11 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     if (user) {
       if (user.password && user.password !== password) {
         setError("کلمه عبور وارد شده نادرست است.");
+        return;
+      }
+      // Check if registration is approved, except for admin (izatesplay)
+      if (user.role !== "admin" && user.approved === false) {
+        setError("حساب کاربری شما هنوز توسط مدیر ارشد سیستم تایید نشده است. لطفا شکیبا باشید.");
         return;
       }
       CRMDatabase.setActiveUser(user);
@@ -187,11 +192,6 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                 ثبت‌نام همکار جدید
               </button>
             </div>
-
-            {/* Hint for demonstration */}
-            <div className="p-3 bg-cyan-500/5 rounded-xl border border-cyan-500/10 text-[11px] text-cyan-300 text-right leading-relaxed mt-4">
-              💡 <strong>راهنما:</strong> برای نقش ادمین ارشد <code className="text-white hover:underline cursor-pointer font-mono font-bold" onClick={() => setUsername("admin")}>admin</code>، برای مشاور فروش <code className="text-white hover:underline cursor-pointer font-mono font-bold" onClick={() => setUsername("consultant")}>consultant</code> و برای کارشناس مرکز تماس <code className="text-white hover:underline cursor-pointer font-mono font-bold" onClick={() => setUsername("agent")}>agent</code> را کلیک یا تایپ کرده و دکمه ورود را بفشارید.
-            </div>
           </form>
         )}
 
@@ -234,6 +234,18 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             </div>
 
             <div>
+              <label className="block text-xs text-slate-300 mb-1.5 text-right font-medium">رمز عبور امنیتی حساب *</label>
+              <input
+                type="password"
+                placeholder="کلمه عبور دلخواه ورود"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full glass-input text-sm p-3 rounded-xl text-right font-mono"
+                id="reg-password-input"
+              />
+            </div>
+
+            <div>
               <label className="block text-xs text-slate-300 mb-1.5 text-right font-medium font-bold">نقش سازمانی همکار *</label>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -245,7 +257,18 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                       : "bg-slate-900/30 border-white/5 text-slate-400 hover:bg-slate-900/50"
                   }`}
                 >
-                  ادمین ارشد
+                  مدیر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("supervisor")}
+                  className={`p-2.5 rounded-xl text-[10px] font-bold cursor-pointer border transition ${
+                    role === "supervisor"
+                      ? "bg-slate-800 border-amber-500/40 text-amber-400 shadow"
+                      : "bg-slate-900/30 border-white/5 text-slate-400 hover:bg-slate-900/50"
+                  }`}
+                >
+                  سرپرست
                 </button>
                 <button
                   type="button"
@@ -256,18 +279,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                       : "bg-slate-900/30 border-white/5 text-slate-400 hover:bg-slate-900/50"
                   }`}
                 >
-                  مشاور فروش
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("agent")}
-                  className={`p-2.5 rounded-xl text-[10px] font-bold cursor-pointer border transition ${
-                    role === "agent"
-                      ? "bg-slate-800 border-amber-500/40 text-amber-400 shadow"
-                      : "bg-slate-900/30 border-white/5 text-slate-400 hover:bg-slate-900/50"
-                  }`}
-                >
-                  مرکز تماس
+                  کارشناس فروش
                 </button>
               </div>
             </div>

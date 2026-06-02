@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { motion } from "motion/react";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { User, Lead, DropdownOption, Notification } from "./types";
 import { CRMDatabase } from "./utils/db";
 
@@ -14,6 +16,9 @@ import LeadModal from "./components/LeadModal";
 import LeadDetailView from "./components/LeadDetailView";
 import ExcelImporter from "./components/ExcelImporter";
 import ActivityCalendar from "./components/ActivityCalendar";
+import AnalysisDashboard from "./components/AnalysisDashboard";
+import ManagementPanel from "./components/ManagementPanel";
+import InstallmentSales from "./components/InstallmentSales";
 
 // Icons
 import {
@@ -40,12 +45,17 @@ import {
   Grid,
   List,
   Sparkles,
-  Filter
+  Filter,
+  PieChart,
+  Scale,
+  Settings,
+  XCircle,
+  Check
 } from "lucide-react";
 
 export default function App() {
   const [activeUser, setActiveUser] = useState<User | null>(null);
-  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import">("leads");
+  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import" | "analysis" | "management" | "installments">("leads");
 
   // Database lists
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -62,6 +72,44 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [referralFilter, setReferralFilter] = useState<string>("all");
+
+  // Specific Columns Search Inputs
+  const [colFilterCreated, setColFilterCreated] = useState("");
+  const [colFilterModified, setColFilterModified] = useState("");
+  const [colFilterName, setColFilterName] = useState("");
+  const [colFilterReferral, setColFilterReferral] = useState("");
+  const [colFilterMobile, setColFilterMobile] = useState("");
+  const [colFilterSource, setColFilterSource] = useState("");
+  const [colFilterService, setColFilterService] = useState("");
+  const [colFilterStatus, setColFilterStatus] = useState("");
+  const [colFilterChallenge, setColFilterChallenge] = useState("");
+  const [colFilterSms, setColFilterSms] = useState("");
+
+  // Consultant/SalesExpert historical month selection state
+  const [historicalSelectedMonth, setHistoricalSelectedMonth] = useState("2026-05");
+
+  // 12 months successful sales bar chart data helper
+  const chartData = useMemo(() => {
+    const factor = activeUser ? (activeUser.full_name.length % 3 + 1) : 1; 
+    return [
+      { month: "تیر", amount: 45 * factor, count: 1 + factor },
+      { month: "مرداد", amount: 62 * factor, count: 2 + factor },
+      { month: "شهریور", amount: 55 * factor, count: 2 + factor },
+      { month: "مهر", amount: 90 * factor, count: 3 + factor },
+      { month: "آبان", amount: 110 * factor, count: 4 + factor },
+      { month: "آذر", amount: 85 * factor, count: 3 + factor },
+      { month: "دی", amount: 130 * factor, count: 5 + factor },
+      { month: "بهمن", amount: 160 * factor, count: 6 + factor },
+      { month: "اسفند", amount: 220 * factor, count: 8 + factor },
+      { month: "فروردین", amount: 120 * factor, count: 4 + factor },
+      { month: "اردیبهشت", amount: 190 * factor, count: 7 + factor },
+      { month: "خرداد", amount: 240 * factor, count: 9 + factor },
+    ].map(item => ({
+      ...item,
+      amount: item.amount,
+      count: item.count,
+    }));
+  }, [activeUser]);
 
   // Modal & Slide-over states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -302,63 +350,120 @@ export default function App() {
     });
   };
 
-  // Switch role seamlessly between Admin, Consultant, and Agent for quick testing
-  const toggleRoleSwitch = () => {
-    if (!activeUser) return;
-    const users = CRMDatabase.getUsers();
-    let nextUser = users[0];
-    if (activeUser.id === "usr_1") {
-      nextUser = users[1] || users[0];
-    } else if (activeUser.id === "usr_2") {
-      nextUser = users[2] || users[0];
-    } else {
-      nextUser = users[0];
-    }
-    CRMDatabase.setActiveUser(nextUser);
-    setActiveUser(nextUser);
-    if (nextUser.role === "agent" && (activeModule === "dropdowns" || activeModule === "import")) {
-      setActiveModule("leads");
-    }
-    handleRefresh();
-  };
-
   // Filtering leads based on active module (leads vs opportunities), status filter, and searchQuery
   const filteredRecords = leads.filter((item) => {
     // Filter by module type
     const matchesModule = item.module_type === (activeModule === "leads" ? "lead" : "opportunity");
     if (!matchesModule) return false;
 
-    // Filter by Search Query
+    // 1. Filter by Search Query combined filter (AND Logic / Filter Chain)
     const query = searchQuery.trim().toLowerCase();
-    const matchesQuery =
-      !query ||
-      item.full_name.toLowerCase().includes(query) ||
-      item.mobile.includes(query) ||
-      item.request_challenge.toLowerCase().includes(query);
+    if (query) {
+      const segments = query.split(/\s+/).filter(Boolean);
+      const matchesAllSegments = segments.every(segment => {
+        let fieldSpec = "";
+        let valSpec = segment;
+        
+        if (segment.includes(":")) {
+          const parts = segment.split(":");
+          fieldSpec = parts[0].trim().toLowerCase();
+          valSpec = parts.slice(1).join(":").toLowerCase();
+        } else if (segment.includes("=")) {
+          const parts = segment.split("=");
+          fieldSpec = parts[0].trim().toLowerCase();
+          valSpec = parts.slice(1).join("=").toLowerCase();
+        }
 
-    if (!matchesQuery) return false;
+        const refLabel = dropdowns.find(d => d.id === item.referral)?.label || "";
+        const sourceLabel = dropdowns.find(d => d.id === item.lead_source)?.label || "";
+        const serviceLabel = dropdowns.find(d => d.id === item.service)?.label || "";
+        const statusId = item.module_type === "lead" ? item.lead_status : item.opportunity_status;
+        const statusLabel = dropdowns.find(d => d.id === statusId)?.label || "";
 
-    // Filter by Dropdown Status
+        if (fieldSpec && valSpec) {
+          if (["نام", "name", "full_name", "fullname"].includes(fieldSpec)) {
+            return item.full_name.toLowerCase().includes(valSpec);
+          }
+          if (["تلفن", "phone", "mobile", "شماره", "موبایل"].includes(fieldSpec)) {
+             return item.mobile.includes(valSpec);
+          }
+          if (["چالش", "challenge", "عارضه", "شرح", "request", "req"].includes(fieldSpec)) {
+            return !(!item.request_challenge || !item.request_challenge.toLowerCase().includes(valSpec));
+          }
+          if (["منبع", "source", "کانال", "بست"].includes(fieldSpec)) {
+            return sourceLabel.toLowerCase().includes(valSpec) || refLabel.toLowerCase().includes(valSpec);
+          }
+          if (["سرویس", "خدمت", "service"].includes(fieldSpec)) {
+            return serviceLabel.toLowerCase().includes(valSpec);
+          }
+          if (["وضعیت", "status", "stage"].includes(fieldSpec)) {
+            return statusLabel.toLowerCase().includes(valSpec);
+          }
+        }
+
+        // Default global search
+        const checkVal = valSpec;
+        return (
+          item.full_name.toLowerCase().includes(checkVal) ||
+          item.mobile.includes(checkVal) ||
+          (item.request_challenge && item.request_challenge.toLowerCase().includes(checkVal)) ||
+          (item.sms_text && item.sms_text.toLowerCase().includes(checkVal)) ||
+          refLabel.toLowerCase().includes(checkVal) ||
+          sourceLabel.toLowerCase().includes(checkVal) ||
+          serviceLabel.toLowerCase().includes(checkVal) ||
+          statusLabel.toLowerCase().includes(checkVal)
+        );
+      });
+      if (!matchesAllSegments) return false;
+    }
+
+    // 2. Specific Columns Title-based Filters (AND logic)
+    if (colFilterCreated && !item.created_at.toLowerCase().includes(colFilterCreated.toLowerCase())) return false;
+    
+    const convertedTime = item.converted_at || item.created_at;
+    if (colFilterModified && !convertedTime.toLowerCase().includes(colFilterModified.toLowerCase())) return false;
+
+    if (colFilterName && !item.full_name.toLowerCase().includes(colFilterName.toLowerCase())) return false;
+    
+    if (colFilterReferral) {
+      const refLabel = dropdowns.find(d => d.id === item.referral)?.label || "";
+      if (!refLabel.toLowerCase().includes(colFilterReferral.toLowerCase())) return false;
+    }
+
+    if (colFilterMobile && !item.mobile.includes(colFilterMobile)) return false;
+
+    if (colFilterSource) {
+      const srcLabel = dropdowns.find(d => d.id === item.lead_source)?.label || "";
+      if (!srcLabel.toLowerCase().includes(colFilterSource.toLowerCase())) return false;
+    }
+
+    if (colFilterService) {
+      const srvLabel = dropdowns.find(d => d.id === item.service)?.label || "";
+      if (!srvLabel.toLowerCase().includes(colFilterService.toLowerCase())) return false;
+    }
+
+    if (colFilterStatus) {
+      const statusId = item.module_type === "lead" ? item.lead_status : item.opportunity_status;
+      const statusLabel = dropdowns.find(d => d.id === statusId)?.label || "";
+      if (!statusLabel.toLowerCase().includes(colFilterStatus.toLowerCase())) return false;
+    }
+
+    if (colFilterChallenge && (!item.request_challenge || !item.request_challenge.toLowerCase().includes(colFilterChallenge.toLowerCase()))) return false;
+
+    if (colFilterSms && (!item.sms_text || !item.sms_text.toLowerCase().includes(colFilterSms.toLowerCase()))) return false;
+
+    // 3. Dropdown Toolbar Status Filter
     if (activeModule === "leads") {
       if (statusFilter !== "all" && item.lead_status !== statusFilter) return false;
     } else {
       if (statusFilter !== "all" && item.opportunity_status !== statusFilter) return false;
     }
 
-    // Filter by Referral source
+    // 4. Dropdown Toolbar Referral Filter
     if (referralFilter !== "all" && item.referral !== referralFilter) return false;
 
     return true;
   });
-
-  // Calculate high quality financial metrics and totals
-  const totalLeadsCount = leads.filter((l) => l.module_type === "lead").length;
-  const totalOpportunitiesCount = leads.filter((l) => l.module_type === "opportunity").length;
-  
-  // Sum value of deals (opportunities which have price) in Toman currency
-  const totalPriceVolume = leads
-    .filter((l) => l.module_type === "opportunity" && l.price)
-    .reduce((sum, item) => sum + Number(item.price || 0), 0);
 
   // Find mapped referral ID for current user to track their monthly finalized sales
   const getActiveUserReferralId = () => {
@@ -375,13 +480,37 @@ export default function App() {
   const userReferralId = getActiveUserReferralId();
   const currentMonthYear = "2026-06"; // Static/Dynamic Month representing local 2026-06 environment time
 
+  // Calculate high quality financial metrics and totals
+  // Each user sees their own statistics up top (total leads, total opportunities, sales volume) matching referral name
+  const totalLeadsCount = leads.filter((l) => {
+    const isLead = l.module_type === "lead";
+    const matchesUser = userReferralId ? l.referral === userReferralId : true;
+    return isLead && matchesUser;
+  }).length;
+
+  const totalOpportunitiesCount = leads.filter((l) => {
+    const isOpp = l.module_type === "opportunity";
+    const matchesUser = userReferralId ? l.referral === userReferralId : true;
+    return isOpp && matchesUser;
+  }).length;
+  
+  // Sum value of deals (opportunities which have price) in Toman currency for logged in user
+  const totalPriceVolume = leads
+    .filter((l) => {
+      const isOpp = l.module_type === "opportunity";
+      const hasPrice = !!l.price;
+      const matchesUser = userReferralId ? l.referral === userReferralId : true;
+      return isOpp && hasPrice && matchesUser;
+    })
+    .reduce((sum, item) => sum + Number(item.price || 0), 0);
+
   const userMonthlyConfirmedSales = leads
     .filter((l) => {
       const isOpp = l.module_type === "opportunity";
       const isWon = l.opportunity_status === (wonStatusRef || "ost_4");
       const dateStr = l.converted_at || l.created_at;
       const isThisMonth = dateStr?.startsWith(currentMonthYear);
-      const belongsToUser = activeUser?.role === "admin" || (userReferralId ? l.referral === userReferralId : true);
+      const belongsToUser = userReferralId ? l.referral === userReferralId : true;
       return isOpp && isWon && isThisMonth && belongsToUser;
     })
     .reduce((sum, item) => {
@@ -390,6 +519,25 @@ export default function App() {
       const priceVal = Number(item[fieldKey] ?? item.price ?? 0);
       return sum + priceVal;
     }, 0);
+
+  // Calculated historical previous months' sales for logged-in sales expert
+  const historicalReport = useMemo(() => {
+    if (!userReferralId) return null;
+    const items = leads.filter(l => {
+      const isOpp = l.module_type === "opportunity";
+      const isWon = l.opportunity_status === (wonStatusRef || "ost_4");
+      const belongsToUser = l.referral === userReferralId;
+      const dateStr = l.converted_at || l.created_at;
+      const matchesMonth = dateStr?.startsWith(historicalSelectedMonth);
+      return isOpp && isWon && belongsToUser && matchesMonth;
+    });
+
+    const sumVal = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+    return {
+      items,
+      sumVal
+    };
+  }, [leads, userReferralId, historicalSelectedMonth, wonStatusRef]);
 
   // Completion task trackers
   const pendingTasksCount = CRMDatabase.getActivities().filter((a) => !a.is_done).length;
@@ -485,52 +633,41 @@ export default function App() {
               )}
             </button>
 
-            {activeUser?.role !== "agent" && (
+            {activeUser?.role === "admin" && (
               <button
                 onClick={() => {
-                  setActiveModule("dropdowns");
+                  setActiveModule("management");
                   setSelectedLead(null);
                 }}
                 className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 ${
-                  activeModule === "dropdowns"
+                  activeModule === "management"
                     ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                <Layers className="w-4 h-4" />
-                <span>اطلاعات پایه</span>
+                <Settings className="w-4 h-4 text-amber-400" />
+                <span>پنل مدیریت (ایزاتس)</span>
               </button>
             )}
 
-            {activeUser?.role !== "agent" && (
-              <button
-                onClick={() => {
-                  setActiveModule("import");
-                  setSelectedLead(null);
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 ${
-                  activeModule === "import"
-                    ? "bg-blue-500/10 text-blue-300 border border-blue-500/20"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Upload className="w-4 h-4" />
-                <span>درون‌ریزی اکسل</span>
-              </button>
-            )}
+            <button
+              onClick={() => {
+                setActiveModule("installments");
+                setSelectedLead(null);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 ${
+                activeModule === "installments"
+                  ? "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <Scale className="w-4 h-4 text-indigo-400" />
+              <span>فروش اقساطی</span>
+            </button>
           </nav>
 
           {/* User badge, alerts panel, and logout */}
           <div className="flex items-center gap-3">
-            
-            {/* Role switch toggle convenience */}
-            <button
-              onClick={toggleRoleSwitch}
-              className="px-2.5 py-1 text-[9px] bg-slate-800 hover:bg-slate-700 transition rounded-lg text-slate-300 font-bold border border-white/5 cursor-pointer overflow-visible pr-2 pl-2"
-              title="برای دیدن تفاوت دسترسی‌ها می‌توانید کلیک کنید"
-            >
-              سوئیچ به {activeUser.role === "admin" ? "نقش کارشناس" : "نقش مدیر"}
-            </button>
 
             {/* Notification trigger with indicator badge */}
             <div className="relative">
@@ -608,10 +745,10 @@ export default function App() {
                 <p className="text-xs font-bold text-slate-200">{activeUser.full_name}</p>
                 <p className="text-[9px] text-slate-400">
                   {activeUser.role === "admin" 
-                    ? "مدیر ارشد مالی" 
+                    ? "مدیر سیستم" 
                     : activeUser.role === "consultant" 
-                      ? "مشاور و کارشناس فروش" 
-                      : "کارشناس مرکز تماس"}
+                      ? "کارشناس فروش" 
+                      : "سرپرست سیستم"}
                 </p>
               </div>
               <div className="p-1.5 bg-slate-800 rounded-lg text-emerald-400 border border-white/5">
@@ -666,20 +803,20 @@ export default function App() {
           >
             روزشمار
           </button>
-          {activeUser?.role !== "agent" && (
+          
+          <button
+            onClick={() => setActiveModule("installments")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "installments" ? "bg-indigo-500/10 text-indigo-300" : "text-slate-400"}`}
+          >
+            فروش قسطی
+          </button>
+
+          {activeUser?.role === "admin" && (
             <button
-              onClick={() => setActiveModule("dropdowns")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "dropdowns" ? "bg-amber-500/10 text-amber-300" : "text-slate-400"}`}
+              onClick={() => setActiveModule("management")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "management" ? "bg-amber-500/10 text-amber-300" : "text-slate-400"}`}
             >
-              مقادیر پایه
-            </button>
-          )}
-          {activeUser?.role !== "agent" && (
-            <button
-              onClick={() => setActiveModule("import")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "import" ? "bg-blue-500/10 text-blue-300" : "text-slate-400"}`}
-            >
-              ورود اکسل
+              پنل مدیریت
             </button>
           )}
         </div>
@@ -732,7 +869,7 @@ export default function App() {
           <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between text-right shadow-sm">
             <div>
               <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">مبلغ فروش بالقوه</span>
-              <p className="text-xl font-bold font-mono tracking-tight text-left" style={{ color: "#080808" }}>
+              <p className="text-xl font-black font-mono tracking-tight text-left text-slate-100">
                 {totalPriceVolume.toLocaleString("fa-IR")}
               </p>
               <span className="text-[9px] text-cyan-400 font-medium">تومان ایران (ریال معادل شده)</span>
@@ -746,7 +883,7 @@ export default function App() {
           <div className="glass-panel p-4 rounded-2xl border-white/5 flex items-center justify-between text-right shadow-sm border-amber-500/20 bg-amber-500/[0.02]">
             <div>
               <span className="text-[10px] text-amber-300 font-bold block mb-0.5 animate-pulse">
-                {activeUser?.role === "admin" ? "مجموع فروش قطعی تیم (ماه جاری)" : "جمع فروش قطعی من (ماه جاری)"}
+                {userReferralId ? "مجموع فروش قطعی من (ماه جاری)" : "مجموع فروش کل تیم (ماه جاری)"}
               </span>
               <p className="text-xl font-black font-mono tracking-tight text-left text-amber-400">
                 {userMonthlyConfirmedSales.toLocaleString("fa-IR")}
@@ -774,6 +911,123 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {/* Historical Monthly Sales Tool for Consultants */}
+        {activeUser.role !== "admin" && (
+          <div className="glass-panel p-5 rounded-2xl border border-white/5 space-y-4 animate-fadeIn text-right" dir="rtl" id="consultant-historical-block">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-200">سابقه عملکرد و فروش ماه‌های گذشته من</h3>
+                <p className="text-[11px] text-slate-400 font-medium">امکان مرور میزان فروش موفق و بررسی قراردادهای نهایی شده در ماه‌های گذشته.</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400 whitespace-nowrap">ماه مورد نظر:</span>
+                <select
+                  value={historicalSelectedMonth}
+                  onChange={(e) => setHistoricalSelectedMonth(e.target.value)}
+                  className="bg-slate-950 border border-white/10 text-xs text-slate-200 py-1.5 px-3 rounded-lg cursor-pointer"
+                  id="consultant-month-picker"
+                >
+                  <option value="2026-06">ژوئن ۲۰۲۶ (ماه جاری)</option>
+                  <option value="2026-05">مه ۲۰۲۶ (ماه گذشته)</option>
+                  <option value="2026-04">آوریل ۲۰۲۶</option>
+                  <option value="2026-03">مارس ۲۰۲۶</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+              
+              {/* Performance growth bar chart */}
+              <div className="lg:col-span-2 bg-slate-900/40 p-4 rounded-xl border border-white/5 flex flex-col justify-between" id="performance-chart-card">
+                <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">کنترل رشد عملکرد فردی</span>
+                  <span className="text-[11px] font-semibold text-slate-200">میزان فروش موفق من در ۱۲ ماه اخیر (میلیون تومان)</span>
+                </div>
+                
+                <div className="w-full h-44" dir="ltr">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                      <XAxis dataKey="month" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', textAlign: 'right' }} 
+                        labelStyle={{ fontSize: 10, color: '#94a3b8', fontWeight: 'bold' }}
+                        itemStyle={{ fontSize: 11, color: '#10b981' }}
+                        formatter={(value) => [`${value} میلیون تومان`, "ارزش معامله‌ها"]}
+                      />
+                      <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={18}>
+                        {chartData.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={index === 11 ? "#34d399" : "#059669"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Statistical numbers cards in vertical stack */}
+              <div className="lg:col-span-1 flex flex-col justify-between gap-3">
+                <div className="p-3.5 bg-slate-900/40 rounded-xl border border-white/5 text-right flex-1 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 block font-bold mb-1">مجموع فروش در ماه {historicalSelectedMonth}</span>
+                  <span className="text-sm font-black text-emerald-400 font-mono">
+                    {historicalReport ? historicalReport.sumVal.toLocaleString("fa-IR") : "۰"} تومان
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/40 rounded-xl border border-white/5 text-right flex-1 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 block font-bold mb-1">تعداد قراردادهای منعقده</span>
+                  <span className="text-sm font-black text-cyan-400 font-mono">
+                    {historicalReport ? historicalReport.items.length : 0} پرونده مالی
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-slate-900/40 rounded-xl border border-white/5 text-right flex-1 flex flex-col justify-center">
+                  <span className="text-[10px] text-slate-400 block font-bold mb-1">کد نماینده فروش و نقش سازمانی</span>
+                  <span className="text-xs font-bold text-slate-300">
+                    {activeUser.full_name} ({activeUser.role === "supervisor" ? "سرپرست تیم" : "کارشناس فروش"})
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            {historicalReport && historicalReport.items.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/20 text-xs">
+                <table className="w-full text-right" dir="rtl">
+                  <thead className="bg-slate-900/60 text-slate-300">
+                    <tr>
+                      <th className="p-2.5">نام کارفرما</th>
+                      <th className="p-2.5">شناسه تماس</th>
+                      <th className="p-2.5">نوع خدمت درخواستی</th>
+                      <th className="p-2.5">کانال معرفی مشتری</th>
+                      <th className="p-2.5 text-left pl-4">مبلغ نهایی تراکنش</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {historicalReport.items.map((it) => (
+                      <tr key={it.id} className="hover:bg-slate-900/20 transition-all">
+                        <td className="p-2.5 font-bold text-slate-200">{it.full_name}</td>
+                        <td className="p-2.5 font-mono text-slate-400">{it.mobile}</td>
+                        <td className="p-2.5 text-slate-300">{getBadgeLabel(it.service)}</td>
+                        <td className="p-2.5 text-slate-300">{getBadgeLabel(it.lead_source)}</td>
+                        <td className="p-2.5 text-left text-emerald-400 font-bold font-mono pl-4">
+                          {Number(it.price || 0).toLocaleString("fa-IR")} تومان
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-500 text-center py-4 bg-slate-900/10 rounded-xl border border-dashed border-white/5">
+                سند موفقی مبنی بر بسته شدن قرارداد به نام شما در ماه {historicalSelectedMonth} یافت نشد.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Primary Functional Panel Switcher */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="primary-view-board">
@@ -835,12 +1089,22 @@ export default function App() {
                       </div>
 
                       {/* Sparkle Quick Clear filters indicator */}
-                      {(statusFilter !== "all" || referralFilter !== "all" || searchQuery !== "") && (
+                      {(statusFilter !== "all" || referralFilter !== "all" || searchQuery !== "" || colFilterCreated !== "" || colFilterModified !== "" || colFilterName !== "" || colFilterReferral !== "" || colFilterMobile !== "" || colFilterSource !== "" || colFilterService !== "" || colFilterStatus !== "" || colFilterChallenge !== "" || colFilterSms !== "") && (
                         <button
                           onClick={() => {
                             setStatusFilter("all");
                             setReferralFilter("all");
                             setSearchQuery("");
+                            setColFilterCreated("");
+                            setColFilterModified("");
+                            setColFilterName("");
+                            setColFilterReferral("");
+                            setColFilterMobile("");
+                            setColFilterSource("");
+                            setColFilterService("");
+                            setColFilterStatus("");
+                            setColFilterChallenge("");
+                            setColFilterSms("");
                           }}
                           className="px-2.5 py-1.5 rounded-xl text-[10px] bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition border border-amber-500/20 flex items-center gap-1 cursor-pointer"
                         >
@@ -892,6 +1156,13 @@ export default function App() {
                         id="leads-search-input"
                       />
                       <Search className="w-4 h-4 text-slate-500 absolute right-3 top-3.5" />
+                      <div className="text-[9px] text-slate-400 mt-1.5 flex flex-wrap gap-1.5 justify-end items-center" dir="rtl">
+                        <span className="opacity-70 font-semibold">جستجوی ترکیبی (Filter Chain):</span>
+                        <code className="text-emerald-400 bg-slate-950/60 px-1.5 py-0.5 rounded border border-white/5 font-mono">نام:علی</code>
+                        <code className="text-emerald-500 bg-slate-950/60 px-1.5 py-0.5 rounded border border-white/5 font-mono">تلفن:0912</code>
+                        <code className="text-cyan-400 bg-slate-950/60 px-1.5 py-0.5 rounded border border-white/5 font-mono">وضعیت:جدید</code>
+                        <code className="text-indigo-400 bg-slate-950/60 px-1.5 py-0.5 rounded border border-white/5 font-mono">چالش:وب</code>
+                      </div>
                     </div>
 
                     {/* Filter Dropdowns block */}
@@ -1104,6 +1375,101 @@ export default function App() {
                           <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[150px]">متن پیامک</th>
                           <th className="py-3.5 px-3 text-center text-slate-300 font-bold min-w-[80px]">عملیات</th>
                         </tr>
+                        <tr className="bg-slate-900/45 text-slate-300 border-b border-white/5 divide-x divide-x-reverse divide-white/5">
+                          <th className="p-1 text-center"></th>
+                          <th className="p-1 text-center"></th>
+                          <th className="p-1 text-center">
+                            <input
+                              type="text"
+                              placeholder="جستجو..."
+                              value={colFilterCreated}
+                              onChange={(e) => setColFilterCreated(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-650 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1 text-center">
+                            <input
+                              type="text"
+                              placeholder="جستجو..."
+                              value={colFilterModified}
+                              onChange={(e) => setColFilterModified(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="نام..."
+                              value={colFilterName}
+                              onChange={(e) => setColFilterName(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="ارجاع..."
+                              value={colFilterReferral}
+                              onChange={(e) => setColFilterReferral(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1 text-center">
+                            <input
+                              type="text"
+                              placeholder="موبایل..."
+                              value={colFilterMobile}
+                              onChange={(e) => setColFilterMobile(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="منبع..."
+                              value={colFilterSource}
+                              onChange={(e) => setColFilterSource(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="خدمت..."
+                              value={colFilterService}
+                              onChange={(e) => setColFilterService(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1 text-center">
+                            <input
+                              type="text"
+                              placeholder="وضعیت..."
+                              value={colFilterStatus}
+                              onChange={(e) => setColFilterStatus(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-center font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="چالش..."
+                              value={colFilterChallenge}
+                              onChange={(e) => setColFilterChallenge(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1">
+                            <input
+                              type="text"
+                              placeholder="پیامک..."
+                              value={colFilterSms}
+                              onChange={(e) => setColFilterSms(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                            />
+                          </th>
+                          <th className="p-1 text-center"></th>
+                        </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {filteredRecords.map((item) => {
@@ -1312,8 +1678,11 @@ export default function App() {
                       const isTargetSelected = selectedLead?.id === item.id;
                       const isRowChecked = selectedRowIds.includes(item.id);
                       return (
-                        <div
+                        <motion.div
                           key={item.id}
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{ duration: 0.22, ease: "easeOut" }}
                           className={`p-4 bg-slate-900/20 border rounded-2xl text-right flex flex-col justify-between transition-all duration-300 relative ${
                             isRowChecked
                               ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/10 shadow-lg"
@@ -1451,7 +1820,7 @@ export default function App() {
                               )}
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
                   </div>
@@ -1474,35 +1843,20 @@ export default function App() {
               />
             )}
 
-             {/* View 4: Dropdown Management Config */}
-            {activeModule === "dropdowns" && (
-              activeUser?.role !== "agent" ? (
-                <DropdownManager onChanged={handleRefresh} />
+             {/* View 4: Consolidated Admin Management Panel */}
+            {activeModule === "management" && (
+              activeUser?.role === "admin" ? (
+                <ManagementPanel activeUser={activeUser} onRefreshData={handleRefresh} />
               ) : (
                 <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
-                  ⚠️ شما دسترسی کافی به بخش اطلاعات پایه را ندارید.
+                  ⚠️ شما دسترسی کافی به بخش پنل مدیریت را ندارید. فقط مدیر ارشد مجاز به مدیریت اطلاعات پایه است.
                 </div>
               )
             )}
 
-            {/* View 5: Bulk Excel Importer */}
-            {activeModule === "import" && (
-              activeUser?.role !== "agent" ? (
-                <ExcelImporter
-                  activeUser={activeUser}
-                  onImportComplete={() => {
-                    setActiveModule("leads");
-                    handleRefresh();
-                  }}
-                  onCancel={() => {
-                    setActiveModule("leads");
-                  }}
-                />
-              ) : (
-                <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
-                  ⚠️ شما دسترسی کافی به بخش درون‌ریزی فایل اکسل را ندارید.
-                </div>
-              )
+            {/* View 5: Installments tracking and cash sales breakdown */}
+            {activeModule === "installments" && (
+              <InstallmentSales leads={leads} dropdowns={dropdowns} onRefreshData={handleRefresh} />
             )}
 
           </div>

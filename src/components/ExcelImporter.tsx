@@ -38,6 +38,7 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
 
   const [message, setMessage] = useState("");
   const [successCount, setSuccessCount] = useState<number | null>(null);
+  const [duplicateCount, setDuplicateCount] = useState<number>(0);
 
   const dropdowns = CRMDatabase.getDropdowns();
   const referralList = dropdowns.filter((o) => o.category === "referral");
@@ -132,7 +133,9 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
       return;
     }
 
+    const currentLeads = [...CRMDatabase.getLeads()];
     let successes = 0;
+    let duplicates = 0;
     let failedRows = 0;
 
     parsedRows.forEach((row) => {
@@ -152,8 +155,14 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
         if (cleanedMobile.startsWith("9")) cleanedMobile = "0" + cleanedMobile;
       }
 
+      // Skip duplicate phone numbers
+      if (cleanedMobile && currentLeads.some(l => l.mobile && l.mobile.replace(/\s/g, "") === cleanedMobile)) {
+        duplicates++;
+        return; 
+      }
+
       // Add Lead
-      CRMDatabase.addLead({
+      const newLead = CRMDatabase.addLead({
         full_name: parsedFullname.trim(),
         mobile: cleanedMobile.trim(),
         referral: defaultReferral,
@@ -166,23 +175,25 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
         module_type: "lead"
       }, activeUser);
 
+      currentLeads.push(newLead);
       successes++;
     });
 
     setSuccessCount(successes);
+    setDuplicateCount(duplicates);
 
     // Save Bulk import notification trace
     CRMDatabase.addNotification({
       user_id: activeUser.id,
       title: "عملیات ورود گروهی موفق",
-      message: `تعداد ${successes} پرونده از فایل جدول با موفقیت افزوده گردید.`,
+      message: `تعداد ${successes} پرونده با موفقیت افزوده گردید و ${duplicates} شماره تکراری نادیده گرفته شد.`,
       notification_type: "assignment",
       is_read: false
     });
 
     setTimeout(() => {
       onImportComplete();
-    }, 2000);
+    }, 3000);
   };
 
   return (
@@ -204,8 +215,13 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
           </div>
           <h3 className="text-base font-bold text-emerald-400">عملیات درون‌ریزی گروهی به پایان رسید!</h3>
           <p className="text-xs text-slate-300">
-            تعداد <strong>{successCount} سرنخ جدید</strong> با موفقیت پردازش، دسته‌بندی و در دیتابیس لوکال CRM الحاق شد.
+            تعداد <strong className="text-emerald-400">{successCount} سرنخ جدید</strong> با موفقیت پردازش و درون‌ریزی شد.
           </p>
+          {duplicateCount > 0 && (
+            <p className="text-xs text-amber-400">
+              ⚠️ تعداد <strong>{duplicateCount} رکورد</strong> به دلیل دارا بودن شماره موبایل تکراری نادیده گرفته شد.
+            </p>
+          )}
           <p className="text-[10px] text-slate-500">در حال هدایت به بخش سرنخ‌ها...</p>
         </div>
       ) : (

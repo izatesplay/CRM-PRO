@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DropdownOption, Lead, Activity, Note, AuditLog, Notification, User } from "../types";
+import { DropdownOption, Lead, Activity, Note, AuditLog, Notification, User, CustomFieldDefinition } from "../types";
 
 // Default seed data for Persian enterprise configuration
 const DEFAULT_DROPDOWNS: DropdownOption[] = [
@@ -50,10 +50,9 @@ const DEFAULT_DROPDOWNS: DropdownOption[] = [
 ];
 
 const DEFAULT_USERS: User[] = [
-  { id: "usr_1", username: "admin", full_name: "مهندس صابر راد", email: "admin@crm.com", role: "admin", password: "admin" },
-  { id: "usr_2", username: "consultant", full_name: "خانم سارا خسروی", email: "sara@crm.com", role: "consultant", password: "123" },
-  { id: "usr_3", username: "agent", full_name: "آقای امیر سالاری (مرکز تماس)", email: "agent@crm.com", role: "agent", password: "123" },
-  { id: "usr_4", username: "supervisor", full_name: "مهندس علی کرمی (سرپرست)", email: "ali@crm.com", role: "supervisor", password: "123" },
+  { id: "usr_1", username: "izatesplay", full_name: "مدیر ارشد سیستم", email: "admin@crm.com", role: "admin", password: "09386561626mM@", approved: true },
+  { id: "usr_2", username: "consultant", full_name: "خانم سارا خسروی", email: "sara@crm.com", role: "consultant", password: "123", approved: true },
+  { id: "usr_4", username: "supervisor", full_name: "مهندس علی کرمی (سرپرست)", email: "ali@crm.com", role: "supervisor", password: "123", approved: true },
 ];
 
 const DEFAULT_LEADS: Lead[] = [
@@ -257,10 +256,80 @@ export class CRMDatabase {
 
   static registerUser(user: Omit<User, "id">): User {
     const users = this.getUsers();
-    const newUser: User = { ...user, id: `usr_${Date.now()}` };
+    const newUser: User = { 
+      ...user, 
+      id: `usr_${Date.now()}`,
+      approved: user.role === "admin" ? true : false, // Needs admin approval if not admin
+    };
     users.push(newUser);
     this.set("users", users);
     return newUser;
+  }
+
+  static updateUser(id: string, updated: Partial<User>): User {
+    const users = this.getUsers();
+    const idx = users.findIndex(u => u.id === id);
+    if (idx > -1) {
+      users[idx] = { ...users[idx], ...updated };
+      this.set("users", users);
+      return users[idx];
+    }
+    throw new Error("User not found");
+  }
+
+  static deleteUser(id: string): void {
+    const users = this.getUsers();
+    const filtered = users.filter(u => u.id !== id);
+    this.set("users", filtered);
+  }
+
+  // System default fields disabled status tracking
+  static getDisabledSystemFields(): string[] {
+    return this.get<string[]>("disabled_system_fields", []);
+  }
+
+  static saveDisabledSystemFields(fields: string[]): void {
+    this.set("disabled_system_fields", fields);
+  }
+
+  // Custom customizable Leads metadata fields
+  static getCustomFields(): CustomFieldDefinition[] {
+    const defaultFields: CustomFieldDefinition[] = [
+      { id: "cf_city", key: "city", label: "شهرستان", type: "text", enabled: true },
+      { id: "cf_company", key: "company", label: "نام سازمان/شرکت", type: "text", enabled: true },
+      { id: "cf_province", key: "province", label: "استان", type: "text", enabled: true },
+      { id: "cf_industry", key: "industry", label: "صنعت/حرفه", type: "text", enabled: true },
+    ];
+    return this.get<CustomFieldDefinition[]>("custom_fields", defaultFields);
+  }
+
+  static saveCustomFields(fields: CustomFieldDefinition[]): void {
+    this.set("custom_fields", fields);
+  }
+
+  static addCustomField(field: Omit<CustomFieldDefinition, "id">): CustomFieldDefinition {
+    const fields = this.getCustomFields();
+    const newField = { ...field, id: `cf_${Date.now()}` };
+    fields.push(newField);
+    this.saveCustomFields(fields);
+    return newField;
+  }
+
+  static updateCustomField(id: string, updated: Partial<CustomFieldDefinition>): CustomFieldDefinition {
+    const fields = this.getCustomFields();
+    const idx = fields.findIndex(f => f.id === id);
+    if (idx > -1) {
+      fields[idx] = { ...fields[idx], ...updated };
+      this.saveCustomFields(fields);
+      return fields[idx];
+    }
+    throw new Error("Custom field not found");
+  }
+
+  static deleteCustomField(id: string): void {
+    const fields = this.getCustomFields();
+    const filtered = fields.filter(f => f.id !== id);
+    this.saveCustomFields(filtered);
   }
 
   // Dropdown options
@@ -312,7 +381,7 @@ export class CRMDatabase {
       ...lead,
       id: `lead_${Date.now()}`,
       created_at: new Date().toISOString(),
-    };
+    } as Lead;
     leads.push(newLead);
     this.saveLeads(leads);
 
@@ -361,7 +430,7 @@ export class CRMDatabase {
       { key: "request_challenge", label: "چالش / جزئیات درخواست" },
       { key: "sms_text", label: "متن پیامک" },
       { key: "opportunity_status", label: "وضعیت فرصت", isDropdown: true },
-      { key: "consultant", label: "مشاور فروش", isDropdown: true },
+      { key: "consultant", label: "کارشناس فروش", isDropdown: true },
       { key: "price", label: "قیمت پروژه" },
       { key: "payment_type", label: "نوع پرداخت قرارداد", isDropdown: true },
       { key: "payment_method", label: "روش تسویه پرداخت", isDropdown: true },

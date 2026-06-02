@@ -36,6 +36,11 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
 
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Dynamic & customized fields states
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const disabledSystemFields = CRMDatabase.getDisabledSystemFields();
+  const customFieldsDef = CRMDatabase.getCustomFields().filter(f => f.enabled);
+
   // Retrieve dropdown arrays for form select boxes
   const dropdowns = CRMDatabase.getDropdowns();
   const referralList = dropdowns.filter((o) => o.category === "referral");
@@ -68,6 +73,13 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
 
   // Load existing lead details if editing
   useEffect(() => {
+    // Populate dynamic custom fields first
+    const initialCustomVals: Record<string, any> = {};
+    customFieldsDef.forEach((field) => {
+      initialCustomVals[field.key] = lead ? (lead[field.key] ?? "") : "";
+    });
+    setCustomFieldValues(initialCustomVals);
+
     if (lead) {
       setFullName(lead.full_name || "");
       setMobile(lead.mobile || "");
@@ -130,6 +142,7 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
       request_challenge: requestChallenge.trim(),
       sms_text: smsText.trim(),
       module_type: moduleType,
+      ...customFieldValues, // Merge dynamic custom fields values
     };
 
     if (moduleType === "opportunity") {
@@ -209,154 +222,227 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">شماره تلفن همراه (موبایل)</label>
-                  <input
-                    type="text"
-                    placeholder="09121234567"
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl font-mono text-left tracking-wide bg-slate-950/50 border-white/5 focus:border-emerald-500/30"
-                    id="modal-mobile-input"
-                  />
-                </div>
+                {!disabledSystemFields.includes("mobile") && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">شماره تلفن همراه (موبایل)</label>
+                    <input
+                      type="text"
+                      placeholder="09121234567"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      className="w-full glass-input text-xs p-2.5 rounded-xl font-mono text-left tracking-wide bg-slate-950/50 border-white/5 focus:border-emerald-500/30"
+                      id="modal-mobile-input"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Section 2: Attribution Details (کانال جذب و انتساب پرونده) */}
-            <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
-              <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
-                <span className="p-1 px-1.5 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/15">
-                  <Users className="w-3.5 h-3.5" />
-                </span>
-                <span>ارجاع پرونده و کانال‌های بازاریابی (Assignment & Source)</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">ارجاع و تخصیص به</label>
-                  <select
-                    value={referral}
-                    onChange={(e) => setReferral(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
-                    id="modal-referral-select"
-                  >
-                    <option value="">-- انتخاب پرسنل --</option>
-                    {referralList.map((rf) => (
-                      <option key={rf.id} value={rf.id}>
-                        {rf.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {(!disabledSystemFields.includes("referral") || !disabledSystemFields.includes("lead_source")) && (
+              <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
+                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
+                  <span className="p-1 px-1.5 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/15">
+                    <Users className="w-3.5 h-3.5" />
+                  </span>
+                  <span>ارجاع پرونده و کانال‌های بازاریابی (Assignment & Source)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {!disabledSystemFields.includes("referral") && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">ارجاع و تخصیص به</label>
+                      <select
+                        value={referral}
+                        onChange={(e) => setReferral(e.target.value)}
+                        className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
+                        id="modal-referral-select"
+                      >
+                        <option value="">-- انتخاب پرسنل --</option>
+                        {referralList.map((rf) => (
+                          <option key={rf.id} value={rf.id}>
+                            {rf.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">کانال جذب / منبع سرنخ</label>
-                  <select
-                    value={leadSource}
-                    onChange={(e) => setLeadSource(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
-                    id="modal-source-select"
-                  >
-                    <option value="">-- انتخاب کانال بازاریابی --</option>
-                    {sourceList.map((src) => (
-                      <option key={src.id} value={src.id}>
-                        {src.label}
-                      </option>
-                    ))}
-                  </select>
+                  {!disabledSystemFields.includes("lead_source") && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">کانال جذب / منبع سرنخ</label>
+                      <select
+                        value={leadSource}
+                        onChange={(e) => setLeadSource(e.target.value)}
+                        className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
+                        id="modal-source-select"
+                      >
+                        <option value="">-- انتخاب کانال بازاریابی --</option>
+                        {sourceList.map((src) => (
+                          <option key={src.id} value={src.id}>
+                            {src.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Section 3: Service Selection (خدمات و دسته‌بندی موضوعی) */}
-            <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
-              <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
-                <span className="p-1 px-1.5 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/15">
-                  <Layers className="w-3.5 h-3.5" />
-                </span>
-                <span>سرویس درخواستی و طبقه‌بندی تخصصی (Requested Service & Categories)</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">سرویس پیشنهادی والد</label>
-                  <select
-                    value={service}
-                    onChange={(e) => setService(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
-                    id="modal-service-select"
-                  >
-                    <option value="">-- انتخاب سرویس والد اصلی --</option>
-                    {serviceList.map((srv) => (
-                      <option key={srv.id} value={srv.id}>
-                        {srv.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {!disabledSystemFields.includes("service") && (
+              <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
+                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
+                  <span className="p-1 px-1.5 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/15">
+                    <Layers className="w-3.5 h-3.5" />
+                  </span>
+                  <span>سرویس درخواستی و طبقه‌بندی تخصصی (Requested Service & Categories)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">سرویس پیشنهادی والد</label>
+                    <select
+                      value={service}
+                      onChange={(e) => setService(e.target.value)}
+                      className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
+                      id="modal-service-select"
+                    >
+                      <option value="">-- انتخاب سرویس والد اصلی --</option>
+                      {serviceList.map((srv) => (
+                        <option key={srv.id} value={srv.id}>
+                          {srv.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">زیرمنوی سرویس تخصصی</label>
-                  <select
-                    value={subService}
-                    onChange={(e) => setSubService(e.target.value)}
-                    disabled={!service}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer disabled:opacity-40 border-white/5 focus:border-emerald-500/30"
-                    id="modal-subservice-select"
-                  >
-                    <option value="">-- ابتدا سرویس بالا را مشخص کنید --</option>
-                    {filteredSubServices.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">زیرمنوی سرویس تخصصی</label>
+                    <select
+                      value={subService}
+                      onChange={(e) => setSubService(e.target.value)}
+                      disabled={!service}
+                      className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer disabled:opacity-40 border-white/5 focus:border-emerald-500/30"
+                      id="modal-subservice-select"
+                    >
+                      <option value="">-- ابتدا سرویس بالا را مشخص کنید --</option>
+                      {filteredSubServices.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Section 4: System Status & Inquiry (وضعیت ارتباطی سیستم و عارضه‌یابی) */}
-            <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
-              <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
-                <span className="p-1 px-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/15">
-                  <Activity className="w-3.5 h-3.5" />
-                </span>
-                <span>وضعیت ارتباط سرنخ و عارضه‌یابی (System Status & Challenge Inquiry)</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">وضعیت ارتباط سرنخ</label>
-                  <select
-                    value={leadStatus}
-                    onChange={(e) => setLeadStatus(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
-                    id="modal-status-select"
-                  >
-                    {statusList.map((st) => (
-                      <option key={st.id} value={st.id}>
-                        {st.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {(!disabledSystemFields.includes("lead_status") || !disabledSystemFields.includes("request_challenge")) && (
+              <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
+                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
+                  <span className="p-1 px-1.5 bg-amber-500/10 text-amber-500 rounded-lg border border-amber-500/15">
+                    <Activity className="w-3.5 h-3.5" />
+                  </span>
+                  <span>وضعیت ارتباط سرنخ و عارضه‌یابی (System Status & Challenge Inquiry)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {!disabledSystemFields.includes("lead_status") && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">وضعیت ارتباط سرنخ</label>
+                      <select
+                        value={leadStatus}
+                        onChange={(e) => setLeadStatus(e.target.value)}
+                        className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
+                        id="modal-status-select"
+                      >
+                        {statusList.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                <div className="hidden md:block" />
+                  {!disabledSystemFields.includes("lead_status") && <div className="hidden md:block" />}
 
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    <span>شرح عارضه / چالش اصلی مشتری و درخواست</span>
-                  </label>
-                  <textarea
-                    placeholder="توضیحات مفصل در خصوص چالش تجاری و درخواستی..."
-                    rows={2}
-                    value={requestChallenge}
-                    onChange={(e) => setRequestChallenge(e.target.value)}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl text-right resize-none bg-slate-950/50 border-white/5 focus:border-emerald-500/30"
-                    id="modal-challenge-textarea"
-                  />
+                  {!disabledSystemFields.includes("request_challenge") && (
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                        <span>شرح عارضه / چالش اصلی مشتری و درخواست</span>
+                      </label>
+                      <textarea
+                        placeholder="توضیحات مفصل در خصوص چالش تجاری و درخواستی..."
+                        rows={2}
+                        value={requestChallenge}
+                        onChange={(e) => setRequestChallenge(e.target.value)}
+                        className="w-full glass-input text-xs p-2.5 rounded-xl text-right resize-none bg-slate-950/50 border-white/5 focus:border-emerald-500/30"
+                        id="modal-challenge-textarea"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Section 5: Custom Dynamic Fields Section */}
+            {customFieldsDef.length > 0 && (
+              <div className="bg-slate-900/40 p-4.5 rounded-xl border border-white/5 space-y-4 animate-fadeIn">
+                <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2 border-b border-white/5 pb-2.5">
+                  <span className="p-1 px-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/15">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </span>
+                  <span>اطلاعات تکمیلی و سفارشی (Custom & Dynamic Fields)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {customFieldsDef.map((field) => (
+                    <div key={field.id}>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        {field.label}
+                      </label>
+                      {field.type === "boolean" ? (
+                        <select
+                          value={customFieldValues[field.key] ?? ""}
+                          onChange={(e) => setCustomFieldValues(prev => ({
+                            ...prev,
+                            [field.key]: e.target.value === "true" ? true : e.target.value === "false" ? false : ""
+                          }))}
+                          className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-indigo-500/30"
+                        >
+                          <option value="">-- انتخاب کنید --</option>
+                          <option value="true">بله</option>
+                          <option value="false">خیر</option>
+                        </select>
+                      ) : field.type === "number" ? (
+                        <input
+                          type="number"
+                          value={customFieldValues[field.key] ?? ""}
+                          onChange={(e) => setCustomFieldValues(prev => ({
+                            ...prev,
+                            [field.key]: e.target.value !== "" ? Number(e.target.value) : ""
+                          }))}
+                          className="w-full glass-input text-xs p-2.5 rounded-xl text-left font-mono bg-slate-950/50 border-white/5 focus:border-indigo-500/30"
+                          placeholder={`${field.label}...`}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={customFieldValues[field.key] ?? ""}
+                          onChange={(e) => setCustomFieldValues(prev => ({
+                            ...prev,
+                            [field.key]: e.target.value
+                          }))}
+                          className="w-full glass-input text-xs p-2.5 rounded-xl text-right bg-slate-950/50 border-white/5 focus:border-indigo-500/30"
+                          placeholder={`مقدار فیلد ${field.label}...`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -463,27 +549,29 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
           )}
 
           {/* SMS Notification Template */}
-          <div className="p-4 bg-slate-900/20 rounded-xl border border-white/5 text-right space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-300">متن پیامک پیش‌نویس (ارسال خودکار)</span>
-              <button
-                type="button"
-                onClick={handleAutoGenerateSMS}
-                className="text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold px-2.5 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1 cursor-pointer"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>نگارش خودکار با الگو</span>
-              </button>
+          {!disabledSystemFields.includes("sms_text") && (
+            <div className="p-4 bg-slate-900/20 rounded-xl border border-white/5 text-right space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">متن پیامک پیش‌نویس (ارسال خودکار)</span>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateSMS}
+                  className="text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold px-2.5 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1 cursor-pointer"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>نگارش خودکار با الگو</span>
+                </button>
+              </div>
+              <textarea
+                placeholder="متن پیامک جهت هماهنگی، خیرمقدم یا ارسال پیش‌فاکتور..."
+                rows={2}
+                value={smsText}
+                onChange={(e) => setSmsText(e.target.value)}
+                className="w-full glass-input text-xs p-2.5 rounded-xl text-right resize-none"
+                id="modal-smstext-textarea"
+              />
             </div>
-            <textarea
-              placeholder="متن پیامک جهت هماهنگی، خیرمقدم یا ارسال پیش‌فاکتور..."
-              rows={2}
-              value={smsText}
-              onChange={(e) => setSmsText(e.target.value)}
-              className="w-full glass-input text-xs p-2.5 rounded-xl text-right resize-none"
-              id="modal-smstext-textarea"
-            />
-          </div>
+          )}
 
           {/* Actions */}
           <div className="border-t border-white/5 pt-4 flex justify-end gap-2 shrink-0">

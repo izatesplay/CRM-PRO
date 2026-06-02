@@ -23,6 +23,14 @@ export interface DropdownOption {
   sort_order: number;
 }
 
+export interface CustomFieldDefinition {
+  id: string;
+  key: string;
+  label: string;
+  type: "text" | "number" | "boolean";
+  enabled: boolean;
+}
+
 export interface Lead {
   id: string;
   full_name: string;
@@ -55,6 +63,8 @@ export interface Lead {
   company?: string;
   address?: string;
   send_sms_unanswered?: string;
+
+  [key: string]: any; // supports dynamic customizable fields
 }
 
 export interface AuditLog {
@@ -106,8 +116,9 @@ export interface User {
   username: string;
   full_name: string;
   email: string;
-  role: "admin" | "consultant" | "agent" | "supervisor";
+  role: "admin" | "consultant" | "supervisor";
   password?: string;
+  approved?: boolean;
 }
 
 export const CATEGORY_LABELS: Record<DropdownCategory, string> = {
@@ -117,7 +128,7 @@ export const CATEGORY_LABELS: Record<DropdownCategory, string> = {
   sub_service: "زیرمنوی سرویس",
   lead_status: "وضعیت سرنخ",
   opportunity_status: "وضعیت فرصت",
-  consultant: "مشاور فروش",
+  consultant: "کارشناس فروش",
   payment_type: "نوع پرداخت",
   payment_method: "روش پرداخت",
 };
