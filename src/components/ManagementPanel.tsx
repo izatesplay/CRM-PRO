@@ -115,6 +115,11 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
 
   const handleApproveUser = (userId: string) => {
     try {
+      const targetUser = usersList.find(u => u.id === userId);
+      if (targetUser && targetUser.role === "admin" && activeUser.username.toLowerCase() !== "izatesplay") {
+        triggerNotify("تنها حساب کاربری مالک اصلی (izatesplay) صلاحیت تایید مدیران دیگر را دارد.", true);
+        return;
+      }
       CRMDatabase.updateUser(userId, { approved: true });
       loadData();
       triggerNotify("حساب کاربری مورد نظر با موفقیت تایید و فعال شد.");
@@ -301,7 +306,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
         >
           <Users className="w-4 h-4" />
           <span>مدیریت کاربران و تایید عضویت</span>
-          {usersList.filter(u => u.role !== "admin" && !u.approved).length > 0 && (
+          {usersList.filter(u => u.username.toLowerCase() !== "izatesplay" && !u.approved).length > 0 && (
             <span className="absolute -top-1 -left-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
           )}
         </button>
@@ -391,52 +396,71 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                       <td colSpan={6} className="p-6 text-center text-slate-500">هیچ کاربری در دیتابیس ثبت نشده است.</td>
                     </tr>
                   ) : (
-                    usersList.map((usr) => (
-                      <tr key={usr.id} className="hover:bg-slate-900/30 transition">
-                        <td className="p-3 font-semibold text-slate-200">{usr.full_name}</td>
-                        <td className="p-3 text-slate-400 font-mono text-[11px]">{usr.username}</td>
-                        <td className="p-3 text-slate-400">{usr.email || "---"}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            usr.role === "admin" 
-                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                              : usr.role === "supervisor"
-                              ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                              : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          }`}>
-                            {usr.role === "admin" ? "مدیر" : usr.role === "supervisor" ? "سرپرست" : "کارشناس فروش"}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center gap-1 font-bold ${usr.approved || usr.role === "admin" ? "text-emerald-400" : "text-rose-400 animate-pulse"}`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                            <span>{usr.approved || usr.role === "admin" ? "تایید شده و فعال" : "در انتظار تایید ادمین"}</span>
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-center gap-2">
-                            {!(usr.approved || usr.role === "admin") && (
+                    usersList.map((usr) => {
+                      const isUserApproved = usr.username.toLowerCase() === "izatesplay" ? true : usr.approved;
+                      const isAdminRole = usr.role === "admin";
+                      const canCurrentAdminApprove = !isAdminRole || activeUser.username.toLowerCase() === "izatesplay";
+                      
+                      return (
+                        <tr key={usr.id} className="hover:bg-slate-900/30 transition">
+                          <td className="p-3 font-semibold text-slate-200">{usr.full_name}</td>
+                          <td className="p-3 text-slate-400 font-mono text-[11px]">{usr.username}</td>
+                          <td className="p-3 text-slate-400">{usr.email || "---"}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              usr.role === "admin" 
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                : usr.role === "supervisor"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            }`}>
+                              {usr.role === "admin" ? "مدیر" : usr.role === "supervisor" ? "سرپرست" : "کارشناس فروش"}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`inline-flex items-center gap-1 font-bold ${isUserApproved ? "text-emerald-400" : "text-rose-400 animate-pulse"}`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                              <span>{isUserApproved ? "تایید شده و فعال" : "در انتظار تایید ادمین"}</span>
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2">
+                              {!isUserApproved && (
+                                <button
+                                  onClick={() => {
+                                    if (!canCurrentAdminApprove) {
+                                      triggerNotify("تنها حساب کاربری izatesplay مجاز به تایید مدیران جدید است.", true);
+                                      return;
+                                    }
+                                    handleApproveUser(usr.id);
+                                  }}
+                                  disabled={!canCurrentAdminApprove}
+                                  className={`p-1 px-3 border rounded-lg text-[10px] cursor-pointer font-bold flex items-center gap-1 transition ${
+                                    canCurrentAdminApprove 
+                                      ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20" 
+                                      : "bg-slate-900/40 text-slate-500 border-white/5 cursor-not-allowed"
+                                  }`}
+                                  title={!canCurrentAdminApprove ? "نیازمند تایید توسط مالک اصلی (izatesplay)" : "تایید عضویت همکار"}
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" />
+                                  <span>{isAdminRole && !canCurrentAdminApprove ? "مخصوص izatesplay" : "تایید عضویت"}</span>
+                                </button>
+                              )}
+                              
                               <button
-                                onClick={() => handleApproveUser(usr.id)}
-                                className="p-1 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] cursor-pointer font-bold flex items-center gap-1 transition"
+                                onClick={() => handleDeleteUser(usr.id)}
+                                disabled={usr.id === activeUser.id || usr.username.toLowerCase() === "izatesplay"}
+                                className="p-1 px-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg text-[10px] cursor-pointer flex items-center gap-1 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={usr.username.toLowerCase() === "izatesplay" ? "حساب کاربری اصلی غیرقابل حذف است" : "حذف حساب"}
                               >
-                                <UserCheck className="w-3.5 h-3.5" />
-                                <span>تایید عضویت</span>
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>حذف</span>
                               </button>
-                            )}
-                            
-                            <button
-                              onClick={() => handleDeleteUser(usr.id)}
-                              disabled={usr.id === activeUser.id}
-                              className="p-1 px-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg text-[10px] cursor-pointer flex items-center gap-1 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>حذف</span>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

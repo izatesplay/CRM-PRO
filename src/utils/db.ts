@@ -4,6 +4,7 @@
  */
 
 import { DropdownOption, Lead, Activity, Note, AuditLog, Notification, User, CustomFieldDefinition } from "../types";
+import { sha256 } from "./crypto";
 
 // Default seed data for Persian enterprise configuration
 const DEFAULT_DROPDOWNS: DropdownOption[] = [
@@ -251,7 +252,19 @@ export class CRMDatabase {
   }
 
   static getUsers(): User[] {
-    return this.get<User[]>("users", DEFAULT_USERS);
+    const users = this.get<User[]>("users", DEFAULT_USERS);
+    let changed = false;
+    const upgraded = users.map(u => {
+      if (u.password && !/^[0-9a-f]{64}$/i.test(u.password)) {
+        u.password = sha256(u.password);
+        changed = true;
+      }
+      return u;
+    });
+    if (changed) {
+      this.set("users", upgraded);
+    }
+    return upgraded;
   }
 
   static registerUser(user: Omit<User, "id">): User {
@@ -259,7 +272,8 @@ export class CRMDatabase {
     const newUser: User = { 
       ...user, 
       id: `usr_${Date.now()}`,
-      approved: user.role === "admin" ? true : false, // Needs admin approval if not admin
+      approved: false, // Force all registry roles (including newly created admins) to go through explicit admin approval is required
+      password: user.password ? sha256(user.password) : undefined,
     };
     users.push(newUser);
     this.set("users", users);

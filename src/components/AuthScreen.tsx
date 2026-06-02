@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { CRMDatabase } from "../utils/db";
 import { User } from "../types";
 import { ShieldCheck, UserCheck, Key, RefreshCw, Mail, CheckCircle } from "lucide-react";
+import { sha256 } from "../utils/crypto";
 
 interface AuthScreenProps {
   onLoginSuccess: (user: User) => void;
@@ -40,13 +41,14 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     );
 
     if (user) {
-      if (user.password && user.password !== password) {
+      const enteredHash = sha256(password);
+      if (user.password && user.password !== enteredHash) {
         setError("کلمه عبور وارد شده نادرست است.");
         return;
       }
-      // Check if registration is approved, except for admin (izatesplay)
-      if (user.role !== "admin" && user.approved === false) {
-        setError("حساب کاربری شما هنوز توسط مدیر ارشد سیستم تایید نشده است. لطفا شکیبا باشید.");
+      // Check if registration is approved, except for the master admin account "izatesplay"
+      if (user.username.toLowerCase() !== "izatesplay" && user.approved === false) {
+        setError("حساب کاربری شما هنوز توسط مدیر ارشد سیستم تایید و فعال نشده است. لطفا منتظر بمانید.");
         return;
       }
       CRMDatabase.setActiveUser(user);
