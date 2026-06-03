@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { User, Lead, DropdownOption, Notification } from "./types";
@@ -50,7 +50,8 @@ import {
   Scale,
   Settings,
   XCircle,
-  Check
+  Check,
+  ChevronDown
 } from "lucide-react";
 
 export default function App() {
@@ -116,6 +117,7 @@ export default function App() {
   const [modalType, setModalType] = useState<"lead" | "opportunity">("lead");
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [expandedCardIds, setExpandedCardIds] = useState<string[]>([]);
 
   // Notifications display status
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
@@ -272,6 +274,8 @@ export default function App() {
       prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
     );
   };
+
+
 
   // Select / Deselect all currently viewable records on listing
   const handleSelectAllRows = (visibleLeads: Lead[]) => {
@@ -563,7 +567,7 @@ export default function App() {
 
       {/* Main sticky top glass header navigation */}
       <header className="sticky top-0 z-40 bg-slate-950/70 backdrop-blur-md border-b border-white/5 py-4 px-6 select-none" id="dashboard-navbar">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-[1700px] mx-auto flex items-center justify-between">
           
           {/* Logo and title */}
           <div className="flex items-center gap-3">
@@ -770,7 +774,7 @@ export default function App() {
       </header>
 
       {/* Main Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 grid grid-cols-1 gap-6">
+      <main className="max-w-[1700px] mx-auto px-4 sm:px-6 pt-6 grid grid-cols-1 gap-6">
         
         {selectedLead ? (
           <div className="w-full animate-fadeIn" id="full-workspace-detail-panel">
@@ -1617,7 +1621,7 @@ export default function App() {
                                   style={{
                                     borderColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}55`,
                                     backgroundColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}`,
-                                    color: "#0f172a", // Dark contrast text on matching solid background
+                                    color: "#ffffff", // Crisp contrast text on matching solid background
                                   }}
                                 >
                                   {getBadgeLabel(activeModule === "leads" ? item.lead_status : item.opportunity_status)}
@@ -1657,7 +1661,7 @@ export default function App() {
                                   {activeUser.role === "admin" && (
                                     <button
                                       onClick={() => handleDeleteLead(item.id)}
-                                      className="p-1 hover:bg-rose-500/15 text-rose-400 hover:text-rose-300 rounded transition cursor-pointer"
+                                      className="p-1 hover:bg-rose-50/15 text-rose-400 hover:text-rose-300 rounded transition cursor-pointer"
                                       title="حذف کامل پرونده"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -1677,39 +1681,65 @@ export default function App() {
                     {filteredRecords.map((item) => {
                       const isTargetSelected = selectedLead?.id === item.id;
                       const isRowChecked = selectedRowIds.includes(item.id);
+                      const catColor = getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status);
+                      const isExpanded = expandedCardIds.includes(item.id);
+
                       return (
                         <motion.div
                           key={item.id}
                           initial={{ opacity: 0, scale: 0.95, y: 10 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           transition={{ duration: 0.22, ease: "easeOut" }}
-                          className={`p-4 bg-slate-900/20 border rounded-2xl text-right flex flex-col justify-between transition-all duration-300 relative ${
+                          className={`p-4 rounded-2xl text-right flex flex-col justify-between transition-all duration-300 relative ${
                             isRowChecked
-                              ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/10 shadow-lg"
+                              ? "ring-1 ring-emerald-500/25 shadow-lg"
                               : isTargetSelected
-                              ? "border-emerald-500/40 bg-slate-900/40 ring-1 ring-emerald-500/10 shadow-lg"
-                              : "border-white/5 hover:border-white/10 hover:bg-slate-900/30"
+                              ? "ring-1 ring-emerald-500/30 shadow-lg"
+                              : "shadow-sm border border-slate-200"
                           }`}
+                          style={{
+                            background: isRowChecked
+                              ? `linear-gradient(135deg, ${catColor}1c 0%, ${catColor}2a 100%)`
+                              : isTargetSelected
+                              ? `linear-gradient(135deg, ${catColor}12 0%, ${catColor}24 100%)`
+                              : `linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.98) 100%)`,
+                            borderColor: isRowChecked
+                              ? `${catColor}88`
+                              : isTargetSelected
+                              ? `${catColor}77`
+                              : `${catColor}30`,
+                            backdropFilter: "blur(12px)",
+                          }}
+                          whileHover={{
+                            scale: 1.015,
+                            borderColor: `${catColor}cc`,
+                            boxShadow: `0 12px 28px -5px ${catColor}35`,
+                            background: isRowChecked
+                              ? `linear-gradient(135deg, ${catColor}24 0%, ${catColor}35 100%)`
+                              : isTargetSelected
+                              ? `linear-gradient(135deg, ${catColor}1a 0%, ${catColor}30 100%)`
+                              : `linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 1) 100%)`,
+                          }}
                           id={`lead-card-${item.id}`}
                         >
                           <div className="space-y-3">
                             {/* Card top banner row */}
-                            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                               <div className="flex items-center gap-1.5">
                                 <input
                                   type="checkbox"
                                   checked={isRowChecked}
                                   onChange={() => toggleSelectRow(item.id)}
-                                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500/30 cursor-pointer w-3.5 h-3.5"
+                                  className="rounded border-slate-300 bg-white text-emerald-500 focus:ring-emerald-500/30 cursor-pointer w-3.5 h-3.5"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => toggleStarLead(item.id, !!item.is_starred)}
-                                  className={`transition-colors cursor-pointer ${item.is_starred ? "text-amber-400" : "text-slate-600 hover:text-slate-400"}`}
+                                  className={`transition-colors cursor-pointer ${item.is_starred ? "text-amber-400" : "text-slate-400 hover:text-slate-600"}`}
                                 >
                                   <Star className="w-3.5 h-3.5 font-extrabold" fill={item.is_starred ? "currentColor" : "none"} />
                                 </button>
-                                <span className="text-[9px] text-slate-400 font-mono">
+                                <span className="text-[11px] text-slate-500 font-mono">
                                   {new Date(item.created_at).toLocaleDateString("fa-IR")}
                                 </span>
                               </div>
@@ -1717,11 +1747,11 @@ export default function App() {
                               {/* Colored Status Badges */}
                               <button
                                 onClick={() => setSelectedLead(item)}
-                                className="text-[10px] px-2 py-0.5 rounded-lg font-bold border hover:opacity-85 transition cursor-pointer"
+                                className="text-[11px] px-2.5 py-0.5 rounded-lg font-bold border hover:opacity-85 transition cursor-pointer"
                                 style={{
-                                  borderColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}44`,
-                                  backgroundColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}15`,
-                                  color: getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status),
+                                  borderColor: `${catColor}55`,
+                                  backgroundColor: `${catColor}15`,
+                                  color: catColor,
                                 }}
                               >
                                 {getBadgeLabel(activeModule === "leads" ? item.lead_status : item.opportunity_status)}
@@ -1732,25 +1762,25 @@ export default function App() {
                             <div>
                               <button
                                 onClick={() => setSelectedLead(item)}
-                                className="text-right w-full hover:text-emerald-400 transition-colors cursor-pointer outline-none block"
+                                className="text-right w-full hover:text-emerald-500 transition-colors cursor-pointer outline-none block"
                               >
-                                <h3 className="text-sm font-bold text-slate-200">{item.full_name}</h3>
+                                <h3 className="text-sm font-extrabold text-slate-900">{item.full_name}</h3>
                               </button>
                               {item.mobile && (
-                                <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.mobile}</p>
+                                <p className="text-xs text-slate-700 font-mono mt-0.5 font-semibold">{item.mobile}</p>
                               )}
                             </div>
 
                             {/* Referral and Source tags */}
-                            <div className="flex flex-wrap gap-1.5 text-[10px]">
+                            <div className="flex flex-wrap gap-1.5 text-xs">
                               {item.referral && (
-                                <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-white/5 flex items-center gap-1">
+                                <span className="bg-slate-100/80 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200/70 flex items-center gap-1">
                                   <span>ارجاع:</span>
-                                  <strong className="text-cyan-400">{getBadgeLabel(item.referral)}</strong>
+                                  <strong className="text-emerald-600">{getBadgeLabel(item.referral)}</strong>
                                 </span>
                               )}
                               {item.lead_source && (
-                                <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-white/5">
+                                <span className="bg-slate-100/80 text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200/70">
                                   منبع: {getBadgeLabel(item.lead_source)}
                                 </span>
                               )}
@@ -1758,26 +1788,91 @@ export default function App() {
 
                             {/* Financial representation for Opportunities */}
                             {activeModule === "opportunities" && item.price && (
-                              <div className="p-2 bg-cyan-950/20 border border-cyan-500/10 rounded-xl text-xs flex items-center justify-between">
-                                <span className="text-slate-400">ارزش کل پروژه:</span>
-                                <strong className="text-cyan-300 font-mono">{Number(item.price).toLocaleString("fa-IR")} تومان</strong>
+                              <div className="p-2.5 bg-sky-50 border border-sky-100/80 rounded-xl text-xs flex items-center justify-between">
+                                <span className="text-slate-600 font-medium">ارزش کل معامله:</span>
+                                <strong className="text-sky-700 font-mono font-bold">{Number(item.price).toLocaleString("fa-IR")} تومان</strong>
                               </div>
                             )}
 
                             {/* Challenge fragment */}
                             {item.request_challenge && (
-                              <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2 bg-slate-950/20 p-2 rounded-xl text-justify border border-white/5">
+                              <p className="text-xs text-slate-600 leading-relaxed line-clamp-2 bg-slate-50/80 p-2.5 rounded-xl text-justify border border-slate-200/50">
                                 {item.request_challenge}
                               </p>
+                            )}
+
+                            {/* Show More Expander toggling */}
+                            <div className="flex justify-center pt-1 border-t border-slate-200/40">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExpandedCardIds((prev) =>
+                                    prev.includes(item.id) ? prev.filter((cid) => cid !== item.id) : [...prev, item.id]
+                                  );
+                                }}
+                                className="text-[11px] text-slate-500 hover:text-emerald-500 transition flex items-center gap-1 font-bold py-1 px-3 rounded-lg hover:bg-slate-100 cursor-pointer"
+                              >
+                                <span>{isExpanded ? "بستن جزئیات" : "نمایش جزئیات بیشتر"}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`} />
+                              </button>
+                            </div>
+
+                            {/* Expanded Metadata Card Drawer panel */}
+                            {isExpanded && (
+                              <div className="pt-2.5 border-t border-slate-200 space-y-2 text-xs text-slate-700 bg-slate-50/50 p-2.5 rounded-xl">
+                                <div className="grid grid-cols-2 gap-2 text-right">
+                                  <div>
+                                    <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">تاریخ ایجاد:</span>
+                                    <span className="font-mono font-bold text-slate-800">
+                                      {new Date(item.created_at).toLocaleDateString("fa-IR")}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">آخرین ویرایش:</span>
+                                    <span className="font-mono font-bold text-slate-800">
+                                      {new Date(item.updated_at || item.created_at).toLocaleDateString("fa-IR")}
+                                    </span>
+                                  </div>
+                                  {item.service && (
+                                    <div>
+                                      <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">سرویس والد:</span>
+                                      <strong className="text-slate-900">{getBadgeLabel(item.service)}</strong>
+                                    </div>
+                                  )}
+                                  {item.sub_service && (
+                                    <div>
+                                      <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">زیرخدمت تخصچی:</span>
+                                      <strong className="text-slate-900">{getBadgeLabel(item.sub_service)}</strong>
+                                    </div>
+                                  )}
+                                  {item.consultant && (
+                                    <div className="col-span-2 border-t border-slate-200/50 pt-1.5 mt-1">
+                                      <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">پرسنل مسئول:</span>
+                                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded text-[11px] font-bold">
+                                        {getBadgeLabel(item.consultant)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {(item.province || item.city || item.address) && (
+                                  <div className="pt-2 border-t border-slate-200/50">
+                                    <span className="text-slate-500 block mb-0.5 font-semibold text-[10.5px]">آدرس کامل کلاینت:</span>
+                                    <p className="text-slate-800 text-[11.5px] leading-relaxed">
+                                      {item.province && `استان ${item.province}`} {item.city && `، شهر ${item.city}`} {item.address && `، ${item.address}`}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
 
                           {/* Action Button trigger bar */}
-                          <div className="border-t border-white/5 pt-3 mt-4 flex items-center justify-between gap-1">
+                          <div className="border-t border-slate-200/40 pt-3 mt-4 flex items-center justify-between gap-1">
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => setSelectedLead(item)}
-                                className="text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center gap-1 transition"
+                                className="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center gap-1 transition"
                                 title="پیگیری فعالیت‌ها و یادداشت‌ها"
                               >
                                 پرونده و پیگیری
@@ -1789,7 +1884,7 @@ export default function App() {
                                   setModalType(activeModule === "leads" ? "lead" : "opportunity");
                                   setIsModalOpen(true);
                                 }}
-                                className="p-1 hover:bg-slate-800 border border-white/5 hover:border-white/15 text-slate-300 rounded-lg cursor-pointer transition overflow-visible"
+                                className="p-1.5 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg cursor-pointer transition overflow-visible"
                                 title="ویرایش عمومی"
                               >
                                 <Edit className="w-3.5 h-3.5" />
@@ -1801,7 +1896,7 @@ export default function App() {
                               {activeModule === "leads" && (
                                 <button
                                   onClick={() => handleConvertLeadToOpportunity(item)}
-                                  className="text-[10px] font-bold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center gap-1 transition"
+                                  className="text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-2.5 py-1.5 rounded-lg cursor-pointer flex items-center gap-1 transition"
                                 >
                                   <ArrowLeftRight className="w-3 h-3" />
                                   <span>تبدیل</span>
@@ -1812,7 +1907,7 @@ export default function App() {
                               {activeUser.role === "admin" && (
                                 <button
                                   onClick={() => handleDeleteLead(item.id)}
-                                  className="p-1.5 hover:bg-rose-500/15 text-rose-400 rounded-lg cursor-pointer transition overflow-visible border border-transparent hover:border-rose-500/10"
+                                  className="p-1.5 hover:bg-rose-50 text-rose-700 rounded-lg cursor-pointer transition overflow-visible border border-rose-200 hover:border-rose-300"
                                   title="حذف کامل سرنخ"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />

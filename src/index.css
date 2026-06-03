@@ -6,16 +6,16 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   /* Premium Inverted light theme mapping */
-  --color-slate-50: #0f172a;  /* Deep slate black */
-  --color-slate-100: #1e293b; /* Strong dark gray */
-  --color-slate-200: #334155; /* Solid gray text */
-  --color-slate-300: #475569; /* Medium gray text */
-  --color-slate-400: #64748b; /* Gray text helper */
-  --color-slate-500: #8da2bb; /* Light muted slate blue */
-  --color-slate-600: #cbd5e1; /* Elegant light outline gray */
-  --color-slate-700: #e2e8f0; /* Gentle slate divider */
-  --color-slate-800: #f1f5f9; /* Warm dashboard section gray */
-  --color-slate-900: #f8fafc; /* Sleek workspace backdrop */
+  --color-slate-50: #060913;  /* Deep slate black */
+  --color-slate-100: #0f172a; /* Strongest dark gray */
+  --color-slate-200: #1a2536; /* Solid dark text - extremely clear */
+  --color-slate-300: #253246; /* High-contrast text */
+  --color-slate-400: #38465b; /* Crisp secondary text */
+  --color-slate-500: #4a5c75; /* Legible helper gray */
+  --color-slate-600: #94a3b8; /* Elegant light outline gray */
+  --color-slate-700: #cbd5e1; /* Gentle slate divider */
+  --color-slate-800: #e2e8f0; /* Warm dashboard section gray */
+  --color-slate-900: #f1f5f9; /* Sleek workspace backdrop */
   --color-slate-950: #ffffff; /* Outstanding white panel base */
 }
 
@@ -23,8 +23,8 @@
 body {
   font-family: var(--font-sans);
   direction: rtl;
-  background-color: #f3f5f9;
-  color: #1e293b;
+  background-color: #f1f5f9;
+  color: #0f172a;
   min-height: 100vh;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -32,8 +32,8 @@ body {
 
 /* Enterprise App Base Backdrop */
 #enterprise-crm-app {
-  background-color: #f3f5f9;
-  color: #1e293b;
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
 
 /* Headers and Navigation layout custom adjustments */

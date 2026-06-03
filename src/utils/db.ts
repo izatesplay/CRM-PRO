@@ -239,16 +239,24 @@ export class CRMDatabase {
 
   // Active User / Auth Storage
   static getActiveUser(): User | null {
-    const user = this.get<User | null>("active_user", null);
-    if (!user) {
-      // Login as guest admin by default
-      return DEFAULT_USERS[0];
+    try {
+      const data = sessionStorage.getItem("crm_active_user");
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
     }
-    return user;
   }
 
   static setActiveUser(user: User | null): void {
-    this.set("active_user", user);
+    try {
+      if (user === null) {
+        sessionStorage.removeItem("crm_active_user");
+      } else {
+        sessionStorage.setItem("crm_active_user", JSON.stringify(user));
+      }
+    } catch (e) {
+      console.error("Session storage failed", e);
+    }
   }
 
   static getUsers(): User[] {

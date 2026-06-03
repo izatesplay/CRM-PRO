@@ -30,7 +30,7 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
   // Opportunity fields
   const [opportunityStatus, setOpportunityStatus] = useState("");
   const [consultant, setConsultant] = useState("");
-  const [price, setPrice] = useState<number | "">("");
+  const [priceInput, setPriceInput] = useState("");
   const [paymentType, setPaymentType] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
 
@@ -59,12 +59,19 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
     (o) => o.category === "sub_service" && o.parent_id === service
   );
 
-  // If a user selects a service, and their previous subService is not in the filtered list, clear it!
+  // If a user selects a service, auto-populate the first valid subService
   useEffect(() => {
     if (service) {
-      const isValid = filteredSubServices.some((s) => s.id === subService);
-      if (!isValid) {
-        setSubService(""); // Clear stale subcategory
+      const filtered = dropdowns.filter(
+        (o) => o.category === "sub_service" && o.parent_id === service
+      );
+      if (filtered.length > 0) {
+        const isValid = filtered.some((s) => s.id === subService);
+        if (!isValid) {
+          setSubService(filtered[0].id); // Auto-set matching sub-category
+        }
+      } else {
+        setSubService("");
       }
     } else {
       setSubService("");
@@ -94,7 +101,7 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
       if (lead.module_type === "opportunity") {
         setOpportunityStatus(lead.opportunity_status || "");
         setConsultant(lead.consultant || "");
-        setPrice(lead.price !== undefined ? lead.price : "");
+        setPriceInput(lead.price !== undefined && lead.price !== null && String(lead.price).trim() !== "" ? Number(lead.price).toLocaleString("en-US") : "");
         setPaymentType(lead.payment_type || "");
         setPaymentMethod(lead.payment_method || "");
       }
@@ -148,7 +155,7 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
     if (moduleType === "opportunity") {
       payload.opportunity_status = opportunityStatus;
       payload.consultant = consultant;
-      payload.price = price !== "" ? Number(price) : undefined;
+      payload.price = priceInput !== "" ? Number(priceInput.replace(/,/g, "")) : undefined;
       payload.payment_type = paymentType;
       payload.payment_method = paymentMethod;
     }
@@ -303,7 +310,19 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
                     <label className="block text-xs font-semibold text-slate-300 mb-1.5">سرویس پیشنهادی والد</label>
                     <select
                       value={service}
-                      onChange={(e) => setService(e.target.value)}
+                      onChange={(e) => {
+                        const newService = e.target.value;
+                        setService(newService);
+                        // Instantly default sub-service to the first matching option
+                        const filtered = dropdowns.filter(
+                          (o) => o.category === "sub_service" && o.parent_id === newService
+                        );
+                        if (filtered.length > 0) {
+                          setSubService(filtered[0].id);
+                        } else {
+                          setSubService("");
+                        }
+                      }}
                       className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-emerald-500/30"
                       id="modal-service-select"
                     >
@@ -402,7 +421,26 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
                       <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                         {field.label}
                       </label>
-                      {field.type === "boolean" ? (
+                      {field.type === "dropdown" ? (
+                        <select
+                          value={customFieldValues[field.key] ?? ""}
+                          onChange={(e) => setCustomFieldValues(prev => ({
+                            ...prev,
+                            [field.key]: e.target.value
+                          }))}
+                          className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-indigo-500/30"
+                        >
+                          <option value="">-- انتخاب کنید --</option>
+                          {dropdowns
+                            .filter((o) => o.category === field.key)
+                            .sort((a, b) => a.sort_order - b.sort_order)
+                            .map((opt) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.label}
+                              </option>
+                            ))}
+                        </select>
+                      ) : field.type === "boolean" ? (
                         <select
                           value={customFieldValues[field.key] ?? ""}
                           onChange={(e) => setCustomFieldValues(prev => ({
@@ -412,8 +450,8 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
                           className="w-full glass-input text-xs p-2.5 rounded-xl bg-slate-950 text-right cursor-pointer border-white/5 focus:border-indigo-500/30"
                         >
                           <option value="">-- انتخاب کنید --</option>
-                          <option value="true">بله</option>
-                          <option value="false">خیر</option>
+                          <option value="true font-bold">بله</option>
+                          <option value="false font-bold">خیر</option>
                         </select>
                       ) : field.type === "number" ? (
                         <input
@@ -493,19 +531,30 @@ export default function LeadModal({ lead, moduleType, activeUser, onClose, onSav
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-300 mb-1.5 flex items-center gap-1">
                     <Coins className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>مبلغ برآورد معامله مالی (تومان)</span>
+                    <span>مبلغ برآورد معامله مالی (تومان) *</span>
                   </label>
                   <input
-                    type="number"
-                    placeholder="مبلغ به تومان..."
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value !== "" ? Number(e.target.value) : "")}
-                    className="w-full glass-input text-xs p-2.5 rounded-xl text-left font-mono bg-slate-950/50 border-white/5 focus:border-cyan-500/30"
+                    type="text"
+                    placeholder="مثال: ۵۰,۰۰۰,۰۰۰"
+                    value={priceInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const englishDigits = val
+                        .replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d).toString())
+                        .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d).toString());
+                      const rawDigits = englishDigits.replace(/[^\d]/g, "");
+                      if (rawDigits === "") {
+                        setPriceInput("");
+                      } else {
+                        setPriceInput(Number(rawDigits).toLocaleString("en-US"));
+                      }
+                    }}
+                    className="w-full glass-input text-xs p-2.5 rounded-xl text-left font-mono bg-slate-950/50 border-white/5 focus:border-cyan-500/30 font-bold"
                     id="modal-price-input"
                   />
-                  {price !== "" && (
-                    <span className="text-[10px] text-cyan-400 mt-1 block">
-                      معادل: {Number(price).toLocaleString("fa-IR")} تومان
+                  {priceInput !== "" && (
+                    <span className="text-[10px] text-cyan-400 mt-1 block font-bold">
+                      معادل: {Number(priceInput.replace(/,/g, "")).toLocaleString("fa-IR")} تومان
                     </span>
                   )}
                 </div>

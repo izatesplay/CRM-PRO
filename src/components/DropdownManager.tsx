@@ -28,7 +28,7 @@ const HEX_PRESETS = [
 ];
 
 export default function DropdownManager({ onChanged }: DropdownManagerProps) {
-  const [activeCategory, setActiveCategory] = useState<DropdownCategory>("lead_status");
+  const [activeCategory, setActiveCategory] = useState<string>("lead_status");
   const [label, setLabel] = useState("");
   const [color, setColor] = useState(HEX_PRESETS[0]);
   const [parentId, setParentId] = useState("");
@@ -36,6 +36,14 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
   const [editLabel, setEditLabel] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editParentId, setEditParentId] = useState("");
+
+  const customDropdownFields = CRMDatabase.getCustomFields().filter(f => f.enabled && f.type === "dropdown");
+  const mergedCategoryLabels: Record<string, string> = {
+    ...CATEGORY_LABELS,
+  };
+  customDropdownFields.forEach(f => {
+    mergedCategoryLabels[f.key] = `${f.label} (سفارشی)`;
+  });
 
   // In-place click confirmation state to bypass blocked dialogs in preview
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -121,7 +129,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
         {/* Category selector column */}
         <div className="lg:col-span-1 flex flex-col gap-1.5 border-l border-white/5 pl-2">
           <label className="text-xs text-slate-400 mb-2 font-medium">سرفصل اطلاعات پایه</label>
-          {(Object.keys(CATEGORY_LABELS) as DropdownCategory[]).map((cat) => {
+          {Object.keys(mergedCategoryLabels).map((cat) => {
             const count = dropdowns.filter((o) => o.category === cat).length;
             return (
               <button
@@ -138,7 +146,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
                 }`}
                 id={`cat-selector-${cat}`}
               >
-                <span>{CATEGORY_LABELS[cat]}</span>
+                <span>{mergedCategoryLabels[cat]}</span>
                 <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full border border-white/5">
                   {count}
                 </span>
@@ -205,7 +213,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
           {/* Form to add item */}
           <form onSubmit={handleAdd} className="p-4 bg-slate-900/30 rounded-xl border border-white/5 space-y-4" id="add-dropdown-form">
             <h3 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-              <span>افزودن گزینه جدید به لیست " {CATEGORY_LABELS[activeCategory]} "</span>
+              <span>افزودن گزینه جدید به لیست " {mergedCategoryLabels[activeCategory]} "</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -27,7 +27,7 @@ export interface CustomFieldDefinition {
   id: string;
   key: string;
   label: string;
-  type: "text" | "number" | "boolean";
+  type: "text" | "number" | "boolean" | "dropdown";
   enabled: boolean;
 }
 
