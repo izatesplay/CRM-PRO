@@ -112,7 +112,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
   const [draggedTopCardKey, setDraggedTopCardKey] = useState<string | null>(null);
   const [showCardsSetup, setShowCardsSetup] = useState<boolean>(false);
 
-  const isAdmin = activeUser.role === "admin" || activeUser.username.toLowerCase() === "izatesplay";
+  const isAdmin = activeUser.role === "admin" || activeUser.role === "developer" || activeUser.username.toLowerCase() === "izatesplay";
 
   // Load and sync Top Cards from local storage
   useEffect(() => {

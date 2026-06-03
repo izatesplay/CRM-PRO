@@ -19,6 +19,7 @@ import ActivityCalendar from "./components/ActivityCalendar";
 import AnalysisDashboard from "./components/AnalysisDashboard";
 import ManagementPanel from "./components/ManagementPanel";
 import InstallmentSales from "./components/InstallmentSales";
+import DeveloperConsole from "./components/DeveloperConsole";
 
 // Icons
 import {
@@ -51,12 +52,13 @@ import {
   Settings,
   XCircle,
   Check,
-  ChevronDown
+  ChevronDown,
+  Terminal
 } from "lucide-react";
 
 export default function App() {
   const [activeUser, setActiveUser] = useState<User | null>(null);
-  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import" | "analysis" | "management" | "installments">("leads");
+  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import" | "analysis" | "management" | "installments" | "developer">("leads");
 
   // Database lists
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -190,6 +192,28 @@ export default function App() {
       }
     }
   }, [activeUser, reloadTrigger, selectedLead?.id]);
+
+  // Pull latest updates from MySQL on login
+  useEffect(() => {
+    if (activeUser) {
+      CRMDatabase.fetchFromMySQL()
+        .then(() => {
+          setReloadTrigger(prev => prev + 1);
+        })
+        .catch(err => console.error("Initial MySQL fetch error", err));
+    }
+  }, [activeUser]);
+
+  // Listen to forced db sync custom events
+  useEffect(() => {
+    const handleSynced = () => {
+      setReloadTrigger(prev => prev + 1);
+    };
+    window.addEventListener("crm_database_synced", handleSynced);
+    return () => {
+      window.removeEventListener("crm_database_synced", handleSynced);
+    };
+  }, []);
 
   // Alarm interval check to push notifications and trigger popups
   useEffect(() => {
@@ -637,7 +661,7 @@ export default function App() {
               )}
             </button>
 
-            {activeUser?.role === "admin" && (
+            {(activeUser?.role === "admin" || activeUser?.role === "developer") && (
               <button
                 onClick={() => {
                   setActiveModule("management");
@@ -651,6 +675,23 @@ export default function App() {
               >
                 <Settings className="w-4 h-4 text-amber-400" />
                 <span>پنل مدیریت (ایزاتس)</span>
+              </button>
+            )}
+
+            {activeUser?.role === "developer" && (
+              <button
+                onClick={() => {
+                  setActiveModule("developer");
+                  setSelectedLead(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 ${
+                  activeModule === "developer"
+                    ? "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Terminal className="w-4 h-4 text-rose-400" />
+                <span>کنسول توسعه‌دهنده 🛠️</span>
               </button>
             )}
 
@@ -750,9 +791,11 @@ export default function App() {
                 <p className="text-[9px] text-slate-400">
                   {activeUser.role === "admin" 
                     ? "مدیر سیستم" 
-                    : activeUser.role === "consultant" 
-                      ? "کارشناس فروش" 
-                      : "سرپرست سیستم"}
+                    : activeUser.role === "developer"
+                      ? "توسعه‌دهنده سیستم"
+                      : activeUser.role === "consultant" 
+                        ? "کارشناس فروش" 
+                        : "سرپرست سیستم"}
                 </p>
               </div>
               <div className="p-1.5 bg-slate-800 rounded-lg text-emerald-400 border border-white/5">
@@ -815,12 +858,21 @@ export default function App() {
             فروش قسطی
           </button>
 
-          {activeUser?.role === "admin" && (
+          {(activeUser?.role === "admin" || activeUser?.role === "developer") && (
             <button
               onClick={() => setActiveModule("management")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "management" ? "bg-amber-500/10 text-amber-300" : "text-slate-400"}`}
             >
               پنل مدیریت
+            </button>
+          )}
+
+          {activeUser?.role === "developer" && (
+            <button
+              onClick={() => setActiveModule("developer")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "developer" ? "bg-rose-500/10 text-rose-300" : "text-slate-400"}`}
+            >
+              کنسول دولوپر 🛠️
             </button>
           )}
         </div>
@@ -1657,8 +1709,8 @@ export default function App() {
                                     <Edit className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* Only Admin role can delete leads to guard integrity */}
-                                  {activeUser.role === "admin" && (
+                                  {/* Only Admin and Developer roles can delete leads to guard integrity */}
+                                  {(activeUser.role === "admin" || activeUser.role === "developer") && (
                                     <button
                                       onClick={() => handleDeleteLead(item.id)}
                                       className="p-1 hover:bg-rose-50/15 text-rose-400 hover:text-rose-300 rounded transition cursor-pointer"
@@ -1903,8 +1955,8 @@ export default function App() {
                                 </button>
                               )}
 
-                              {/* Only Admin role can delete leads to guard integrity */}
-                              {activeUser.role === "admin" && (
+                              {/* Only Admin and Developer roles can delete leads to guard integrity */}
+                              {(activeUser.role === "admin" || activeUser.role === "developer") && (
                                 <button
                                   onClick={() => handleDeleteLead(item.id)}
                                   className="p-1.5 hover:bg-rose-50 text-rose-700 rounded-lg cursor-pointer transition overflow-visible border border-rose-200 hover:border-rose-300"
@@ -1940,7 +1992,7 @@ export default function App() {
 
              {/* View 4: Consolidated Admin Management Panel */}
             {activeModule === "management" && (
-              activeUser?.role === "admin" ? (
+              (activeUser?.role === "admin" || activeUser?.role === "developer") ? (
                 <ManagementPanel activeUser={activeUser} onRefreshData={handleRefresh} />
               ) : (
                 <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
@@ -1952,6 +2004,17 @@ export default function App() {
             {/* View 5: Installments tracking and cash sales breakdown */}
             {activeModule === "installments" && (
               <InstallmentSales leads={leads} dropdowns={dropdowns} onRefreshData={handleRefresh} />
+            )}
+
+            {/* View 6: Developer and Database Console */}
+            {activeModule === "developer" && (
+              activeUser?.role === "developer" ? (
+                <DeveloperConsole activeUser={activeUser} onRefreshAllData={handleRefresh} />
+              ) : (
+                <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
+                  ⚠️ خطای دسترسی صادر شد. کلاینت شما نقش معتبر توسعه‌دهنده سیستم را ندارد.
+                </div>
+              )
             )}
 
           </div>

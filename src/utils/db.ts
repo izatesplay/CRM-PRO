@@ -51,6 +51,7 @@ const DEFAULT_DROPDOWNS: DropdownOption[] = [
 ];
 
 const DEFAULT_USERS: User[] = [
+  { id: "usr_dev", username: "Mohamad1378", full_name: "توسعه‌دهنده سیستم (Developer)", email: "mohamad1378@crm.com", role: "developer", password: "09386561626mM@", approved: true },
   { id: "usr_1", username: "izatesplay", full_name: "مدیر ارشد سیستم", email: "admin@crm.com", role: "admin", password: "09386561626mM@", approved: true },
   { id: "usr_2", username: "consultant", full_name: "خانم سارا خسروی", email: "sara@crm.com", role: "consultant", password: "123", approved: true },
   { id: "usr_4", username: "supervisor", full_name: "مهندس علی کرمی (سرپرست)", email: "ali@crm.com", role: "supervisor", password: "123", approved: true },
@@ -229,11 +230,172 @@ export class CRMDatabase {
     }
   }
 
-  private static set<T>(key: string, value: T): void {
+  private static isSyncing = false;
+
+  private static set<T>(key: string, value: T, bypassAutoSync = false): void {
     try {
       localStorage.setItem(`crm_${key}`, JSON.stringify(value));
+      if (!bypassAutoSync && !this.isSyncing) {
+        if (["users", "dropdowns", "custom_fields", "leads", "activities", "notes", "audit_logs", "notifications"].includes(key)) {
+          this.syncWithMySQL().catch(e => console.error("Auto sync failed", e));
+        }
+      }
     } catch (e) {
       console.error("Storage failed", e);
+    }
+  }
+
+  // Database Connection logs, stats, and checks
+  static getDBLogs(): Array<{ timestamp: string; type: "info" | "error" | "success"; message: string; details?: string }> {
+    return this.get<Array<{ timestamp: string; type: "info" | "error" | "success"; message: string; details?: string }>>("db_logs", []);
+  }
+
+  static addDBLog(type: "info" | "error" | "success", message: string, details?: string): void {
+    const logs = this.getDBLogs();
+    logs.unshift({
+      timestamp: new Date().toISOString(),
+      type,
+      message,
+      details
+    });
+    // Keep last 100 logs
+    this.set("db_logs", logs.slice(0, 100), true);
+    window.dispatchEvent(new CustomEvent("crm_db_logs_updated"));
+  }
+
+  static resetDBLogs(): void {
+    this.set("db_logs", [], true);
+    window.dispatchEvent(new CustomEvent("crm_db_logs_updated"));
+  }
+
+  static async checkConnectionStatus(): Promise<{ success: boolean; message: string; dbName?: string; tables?: string[] }> {
+    try {
+      const resp = await fetch("./api.php?action=status");
+      const data = await resp.json();
+      if (resp.ok && data.status === "success") {
+        this.addDBLog("success", "تست اتصال به دیتابیس MySQL با موفقیت انجام شد.", `دیتابیس: ${data.database} | ماردها: ${data.tables_configured ? data.tables_configured.join(', ') : ''}`);
+        return {
+          success: true,
+          message: data.message,
+          dbName: data.database,
+          tables: data.tables_configured
+        };
+      } else {
+        const errMsg = data.message || "پاسخ نامشخص از API";
+        this.addDBLog("error", "تست اتصال به دیتابیس با شکست مواجه شد.", errMsg);
+        return { success: false, message: errMsg };
+      }
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      this.addDBLog("error", "خطای شبکه یا عدم پاسخگویی از فایل api.php", errMsg);
+      return { success: false, message: `عدم امکان دسترسی به دیتابیس: ${errMsg}` };
+    }
+  }
+
+  static async syncWithMySQL(): Promise<boolean> {
+    if (this.isSyncing) return false;
+    try {
+      this.isSyncing = true;
+      this.addDBLog("info", "در حال ارسال همگام‌سازی جریانات مالی و لیدهای جدید به MySQL...");
+      
+      const payload = {
+        users: this.get<User[]>("users", DEFAULT_USERS),
+        dropdowns: this.get<DropdownOption[]>("dropdowns", []),
+        custom_fields: this.get<CustomFieldDefinition[]>("custom_fields", []),
+        leads: this.get<Lead[]>("leads", []),
+        activities: this.get<Activity[]>("activities", []),
+        notes: this.get<Note[]>("notes", []),
+        audit_logs: this.get<AuditLog[]>("audit_logs", []),
+        notifications: this.get<Notification[]>("notifications", [])
+      };
+
+      const resp = await fetch("./api.php?action=sync_all", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.status === "success") {
+        this.addDBLog("success", "همگام‌سازی کامل داده‌ها با دیتابیس MySQL با موفقیت انجام شد.");
+        return true;
+      } else {
+        const errorMsg = data.message || "خطای ناشناخته در همگام‌سازی";
+        this.addDBLog("error", "همگام‌سازی با MySQL با شکست مواجه شد.", errorMsg);
+        return false;
+      }
+    } catch (e: any) {
+      const errorMsg = e?.message || String(e);
+      this.addDBLog("error", "خطای شبکه در فرآیند ذخیره‌سازی داده‌ها روی MySQL", errorMsg);
+      return false;
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  static async fetchFromMySQL(): Promise<boolean> {
+    if (this.isSyncing) return false;
+    try {
+      this.isSyncing = true;
+      this.addDBLog("info", "در حال واکشی آخرین وضعیت جریانات از دیتابیس MySQL...");
+      const resp = await fetch("./api.php?action=get_all");
+      const resData = await resp.json();
+      
+      if (resp.ok && resData.status === "success" && resData.data) {
+        const dbData = resData.data;
+        if (dbData.users && dbData.users.length > 0) this.set("users", dbData.users, true);
+        if (dbData.dropdowns && dbData.dropdowns.length > 0) this.set("dropdowns", dbData.dropdowns, true);
+        if (dbData.custom_fields && dbData.custom_fields.length > 0) {
+          const mappedFields = dbData.custom_fields.map((f: any) => ({
+            id: f.id,
+            key: f.key,
+            label: f.label,
+            type: f.type,
+            enabled: f.enabled ? true : false
+          }));
+          this.set("custom_fields", mappedFields, true);
+        }
+        if (dbData.leads && dbData.leads.length > 0) {
+          const mappedLeads = dbData.leads.map((l: any) => ({
+            ...l,
+            is_starred: l.is_starred ? true : false,
+            price: l.price !== null ? Number(l.price) : null
+          }));
+          this.set("leads", mappedLeads, true);
+        }
+        if (dbData.activities && dbData.activities.length > 0) {
+          const mappedActs = dbData.activities.map((a: any) => ({
+            ...a,
+            is_done: a.is_done ? true : false
+          }));
+          this.set("activities", mappedActs, true);
+        }
+        if (dbData.notes && dbData.notes.length > 0) this.set("notes", dbData.notes, true);
+        if (dbData.audit_logs && dbData.audit_logs.length > 0) this.set("audit_logs", dbData.audit_logs, true);
+        if (dbData.notifications && dbData.notifications.length > 0) {
+          const mappedNotifs = dbData.notifications.map((n: any) => ({
+            ...n,
+            is_read: n.is_read ? true : false
+          }));
+          this.set("notifications", mappedNotifs, true);
+        }
+        
+        this.addDBLog("success", "دریافت اطلاعات با موفقیت از دیتابیس MySQL انجام و بروزرسانی شد.");
+        window.dispatchEvent(new CustomEvent("crm_database_synced"));
+        return true;
+      } else {
+        const errorMsg = resData.message || "خطای ناشناخته در سرور";
+        this.addDBLog("error", "خطا در واکشی اطلاعات از دیتابیس MySQL", errorMsg);
+        return false;
+      }
+    } catch (e: any) {
+      const errorMsg = e?.message || String(e);
+      this.addDBLog("error", "خطای ارتباطی با وب سرویس دیتابیس اصلی", errorMsg);
+      return false;
+    } finally {
+      this.isSyncing = false;
     }
   }
 

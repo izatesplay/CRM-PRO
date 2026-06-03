@@ -116,7 +116,7 @@ export interface User {
   username: string;
   full_name: string;
   email: string;
-  role: "admin" | "consultant" | "supervisor";
+  role: "admin" | "consultant" | "supervisor" | "developer";
   password?: string;
   approved?: boolean;
 }

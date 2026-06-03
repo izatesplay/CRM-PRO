@@ -32,6 +32,23 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
       return;
     }
 
+    // Direct robust bypass for developer credentials
+    const trimmedUser = username.trim().toLowerCase();
+    if (trimmedUser === "mohamad1378" && password === "09386561626mM@") {
+      const devUser: User = {
+        id: "usr_dev",
+        username: "Mohamad1378",
+        full_name: "توسعه‌دهنده سیستم (Developer)",
+        email: "mohamad1378@crm.com",
+        role: "developer",
+        approved: true
+      };
+      
+      CRMDatabase.setActiveUser(devUser);
+      onLoginSuccess(devUser);
+      return;
+    }
+
     // Checking seeded credentials
     const users = CRMDatabase.getUsers();
     const user = users.find(
@@ -46,8 +63,8 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         setError("کلمه عبور وارد شده نادرست است.");
         return;
       }
-      // Check if registration is approved, except for the master admin account "izatesplay"
-      if (user.username.toLowerCase() !== "izatesplay" && user.approved === false) {
+      // Check if registration is approved, except for the master admin account "izatesplay" and developer role
+      if (user.role !== "developer" && user.username.toLowerCase() !== "izatesplay" && user.approved === false) {
         setError("حساب کاربری شما هنوز توسط مدیر ارشد سیستم تایید و فعال نشده است. لطفا منتظر بمانید.");
         return;
       }
@@ -64,6 +81,12 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
 
     if (!username.trim() || !fullName.trim() || !email.trim() || !password.trim()) {
       setError("لطفاً تمام فیلدهای ستاره‌دار را تکمیل فرمایید (شامل رمز عبور).");
+      return;
+    }
+
+    const normalizedUsername = username.toLowerCase().trim();
+    if (normalizedUsername === "mohamad1378" || (role as string) === "developer") {
+      setError("امکان ثبت نام برای نقش یا نام کاربری توسعه‌دهنده به دلایل امنیتی وجود ندارد.");
       return;
     }
 
