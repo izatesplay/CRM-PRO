@@ -589,7 +589,7 @@ export class CRMDatabase {
     if (idx === -1) throw new Error("Lead not found");
 
     const oldLead = leads[idx];
-    const newLead = { ...oldLead, ...updated };
+    const newLead = { ...oldLead, ...updated, updated_at: new Date().toISOString() };
     leads[idx] = newLead;
     this.saveLeads(leads);
 

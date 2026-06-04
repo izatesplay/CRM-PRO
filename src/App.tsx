@@ -91,6 +91,9 @@ export default function App() {
   // Consultant/SalesExpert historical month selection state
   const [historicalSelectedMonth, setHistoricalSelectedMonth] = useState("2026-05");
 
+  // Track disabled system fields dynamically to hide them from tables and forms
+  const [disabledSystemFields, setDisabledSystemFields] = useState<string[]>([]);
+
   // 12 months successful sales bar chart data helper
   const chartData = useMemo(() => {
     const factor = activeUser ? (activeUser.full_name.length % 3 + 1) : 1; 
@@ -182,6 +185,7 @@ export default function App() {
       setNotifications(CRMDatabase.getNotifications());
       setPriceFieldRef(localStorage.getItem("crm_sales_price_field") || "price");
       setWonStatusRef(localStorage.getItem("crm_sales_won_status") || "ost_4");
+      setDisabledSystemFields(CRMDatabase.getDisabledSystemFields());
 
       // Update selectedLead to its latest version from database to reflect inline reviews instantly
       if (selectedLead) {
@@ -1421,14 +1425,30 @@ export default function App() {
                           <th className="py-3.5 px-2 w-8 text-center text-[10px] text-slate-400">ستاره</th>
                           <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 text-center">زمان ایجاد</th>
                           <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 text-center">زمان ویرایش</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[140px]">نام و نام خانوادگی</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[130px]">ارجاع داده شده</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[110px]">شماره موبایل</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[120px]">منبع سرنخ</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[100px]">سرویس</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-400 min-w-[150px] text-center">وضعیت سرنخ/پرونده</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[200px]">درخواست/چالش</th>
-                          <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[150px]">متن پیامک</th>
+                          {!disabledSystemFields.includes("full_name") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[140px]">نام و نام خانوادگی</th>
+                          )}
+                          {!disabledSystemFields.includes("referral") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[130px]">ارجاع داده شده</th>
+                          )}
+                          {!disabledSystemFields.includes("mobile") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[110px]">شماره موبایل</th>
+                          )}
+                          {!disabledSystemFields.includes("lead_source") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[120px]">منبع سرنخ</th>
+                          )}
+                          {!disabledSystemFields.includes("service") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[100px]">سرویس</th>
+                          )}
+                          {!disabledSystemFields.includes("lead_status") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-400 min-w-[150px] text-center">وضعیت سرنخ/پرونده</th>
+                          )}
+                          {!disabledSystemFields.includes("request_challenge") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[200px]">درخواست/چالش</th>
+                          )}
+                          {!disabledSystemFields.includes("sms_text") && (
+                            <th className="py-3.5 px-4 font-bold whitespace-nowrap text-slate-300 min-w-[150px]">متن پیامک</th>
+                          )}
                           <th className="py-3.5 px-3 text-center text-slate-300 font-bold min-w-[80px]">عملیات</th>
                         </tr>
                         <tr className="bg-slate-900/45 text-slate-300 border-b border-white/5 divide-x divide-x-reverse divide-white/5">
@@ -1452,78 +1472,94 @@ export default function App() {
                               className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
                             />
                           </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="نام..."
-                              value={colFilterName}
-                              onChange={(e) => setColFilterName(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="ارجاع..."
-                              value={colFilterReferral}
-                              onChange={(e) => setColFilterReferral(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1 text-center">
-                            <input
-                              type="text"
-                              placeholder="موبایل..."
-                              value={colFilterMobile}
-                              onChange={(e) => setColFilterMobile(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="منبع..."
-                              value={colFilterSource}
-                              onChange={(e) => setColFilterSource(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="خدمت..."
-                              value={colFilterService}
-                              onChange={(e) => setColFilterService(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1 text-center">
-                            <input
-                              type="text"
-                              placeholder="وضعیت..."
-                              value={colFilterStatus}
-                              onChange={(e) => setColFilterStatus(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-center font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="چالش..."
-                              value={colFilterChallenge}
-                              onChange={(e) => setColFilterChallenge(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
-                          <th className="p-1">
-                            <input
-                              type="text"
-                              placeholder="پیامک..."
-                              value={colFilterSms}
-                              onChange={(e) => setColFilterSms(e.target.value)}
-                              className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
-                            />
-                          </th>
+                          {!disabledSystemFields.includes("full_name") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="نام..."
+                                value={colFilterName}
+                                onChange={(e) => setColFilterName(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("referral") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="ارجاع..."
+                                value={colFilterReferral}
+                                onChange={(e) => setColFilterReferral(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("mobile") && (
+                            <th className="p-1 text-center">
+                              <input
+                                type="text"
+                                placeholder="موبایل..."
+                                value={colFilterMobile}
+                                onChange={(e) => setColFilterMobile(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1 py-1 text-[10px] text-center font-mono text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("lead_source") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="منبع..."
+                                value={colFilterSource}
+                                onChange={(e) => setColFilterSource(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("service") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="خدمت..."
+                                value={colFilterService}
+                                onChange={(e) => setColFilterService(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("lead_status") && (
+                            <th className="p-1 text-center">
+                              <input
+                                type="text"
+                                placeholder="وضعیت..."
+                                value={colFilterStatus}
+                                onChange={(e) => setColFilterStatus(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-center font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("request_challenge") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="چالش..."
+                                value={colFilterChallenge}
+                                onChange={(e) => setColFilterChallenge(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
+                          {!disabledSystemFields.includes("sms_text") && (
+                            <th className="p-1">
+                              <input
+                                type="text"
+                                placeholder="پیامک..."
+                                value={colFilterSms}
+                                onChange={(e) => setColFilterSms(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/5 rounded px-1.5 py-1 text-[10px] text-right font-medium text-slate-300 placeholder:text-slate-655 outline-none focus:border-emerald-500/30"
+                              />
+                            </th>
+                          )}
                           <th className="p-1 text-center"></th>
                         </tr>
                       </thead>
@@ -1611,88 +1647,104 @@ export default function App() {
                               </td>
 
                               {/* 5. Client Full Name */}
-                              <td className="py-3 px-4 font-bold text-slate-200">
-                                <button
-                                  onClick={() => setSelectedLead(item)}
-                                  className="flex items-center gap-1.5 hover:text-emerald-400 text-right w-full cursor-pointer transition-colors outline-none"
-                                  title="مشاهده جزئیات پرونده و ثبت پیگیری جدید"
-                                >
-                                  <span>{item.full_name}</span>
-                                  {item.is_starred && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                  )}
-                                </button>
-                              </td>
+                              {!disabledSystemFields.includes("full_name") && (
+                                <td className="py-3 px-4 font-bold text-slate-200">
+                                  <button
+                                    onClick={() => setSelectedLead(item)}
+                                    className="flex items-center gap-1.5 hover:text-emerald-400 text-right w-full cursor-pointer transition-colors outline-none"
+                                    title="مشاهده جزئیات پرونده و ثبت پیگیری جدید"
+                                  >
+                                    <span>{item.full_name}</span>
+                                    {item.is_starred && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                    )}
+                                  </button>
+                                </td>
+                              )}
 
                               {/* 6. Referral */}
-                              <td className="py-3 px-4 text-slate-300 font-medium">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getBadgeColor(item.referral) }} />
-                                  <span>{getBadgeLabel(item.referral)}</span>
-                                </div>
-                              </td>
+                              {!disabledSystemFields.includes("referral") && (
+                                <td className="py-3 px-4 text-slate-300 font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getBadgeColor(item.referral) }} />
+                                    <span>{getBadgeLabel(item.referral)}</span>
+                                  </div>
+                                </td>
+                              )}
 
                               {/* 7. Mobile Phone clickable */}
-                              <td className="py-3 px-4 font-semibold">
-                                <a
-                                  href={`tel:${item.mobile}`}
-                                  className="text-cyan-400 font-mono hover:underline hover:text-cyan-300 transition-colors"
-                                  title="تماس مستقیم سریع"
-                                >
-                                  {item.mobile}
-                                </a>
-                              </td>
+                              {!disabledSystemFields.includes("mobile") && (
+                                <td className="py-3 px-4 font-semibold">
+                                  <a
+                                    href={`tel:${item.mobile}`}
+                                    className="text-cyan-400 font-mono hover:underline hover:text-cyan-300 transition-colors"
+                                    title="تماس مستقیم سریع"
+                                  >
+                                    {item.mobile}
+                                  </a>
+                                </td>
+                              )}
 
                               {/* 8. Lead Source */}
-                              <td className="py-3 px-4">
-                                <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded text-[10px] border border-white/5 font-extrabold whitespace-nowrap">
-                                  {getBadgeLabel(item.lead_source)}
-                                </span>
-                              </td>
+                              {!disabledSystemFields.includes("lead_source") && (
+                                <td className="py-3 px-4">
+                                  <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded text-[10px] border border-white/5 font-extrabold whitespace-nowrap">
+                                    {getBadgeLabel(item.lead_source)}
+                                  </span>
+                                </td>
+                              )}
 
                               {/* 9. Key Service */}
-                              <td className="py-3 px-4">
-                                <span
-                                  className="px-2 py-1 rounded text-[10px] border font-extrabold whitespace-nowrap"
-                                  style={{
-                                    borderColor: `${getBadgeColor(item.service)}33`,
-                                    backgroundColor: `${getBadgeColor(item.service)}15`,
-                                    color: getBadgeColor(item.service),
-                                  }}
-                                >
-                                  {getBadgeLabel(item.service)}
-                                </span>
-                              </td>
+                              {!disabledSystemFields.includes("service") && (
+                                <td className="py-3 px-4">
+                                  <span
+                                    className="px-2 py-1 rounded text-[10px] border font-extrabold whitespace-nowrap"
+                                    style={{
+                                      borderColor: `${getBadgeColor(item.service)}33`,
+                                      backgroundColor: `${getBadgeColor(item.service)}15`,
+                                      color: getBadgeColor(item.service),
+                                    }}
+                                  >
+                                    {getBadgeLabel(item.service)}
+                                  </span>
+                                </td>
+                              )}
 
                               {/* 10. Status Pill - Premium styling mimicking screenshot's solid thick pill badges */}
-                              <td className="py-3 px-4 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedLead(item)}
-                                  className="px-3 py-1 rounded-full text-[10px] font-extrabold border shadow-sm transition hover:scale-[1.03] active:scale-[0.98] whitespace-nowrap cursor-pointer mx-auto block"
-                                  style={{
-                                    borderColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}55`,
-                                    backgroundColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}`,
-                                    color: "#ffffff", // Crisp contrast text on matching solid background
-                                  }}
-                                >
-                                  {getBadgeLabel(activeModule === "leads" ? item.lead_status : item.opportunity_status)}
-                                </button>
-                              </td>
+                              {!disabledSystemFields.includes("lead_status") && (
+                                <td className="py-3 px-4 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedLead(item)}
+                                    className="px-3 py-1 rounded-full text-[10px] font-extrabold border shadow-sm transition hover:scale-[1.03] active:scale-[0.98] whitespace-nowrap cursor-pointer mx-auto block"
+                                    style={{
+                                      borderColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}55`,
+                                      backgroundColor: `${getBadgeColor(activeModule === "leads" ? item.lead_status : item.opportunity_status)}`,
+                                      color: "#ffffff", // Crisp contrast text on matching solid background
+                                    }}
+                                  >
+                                    {getBadgeLabel(activeModule === "leads" ? item.lead_status : item.opportunity_status)}
+                                  </button>
+                                </td>
+                              )}
 
                               {/* 11. Challenge / Request Content with complete lines */}
-                              <td className="py-3 px-4 max-w-[280px]">
-                                <div className="text-slate-300 leading-relaxed truncate text-justify" title={item.request_challenge}>
-                                  {item.request_challenge}
-                                </div>
-                              </td>
+                              {!disabledSystemFields.includes("request_challenge") && (
+                                <td className="py-3 px-4 max-w-[280px]">
+                                  <div className="text-slate-300 leading-relaxed truncate text-justify" title={item.request_challenge}>
+                                    {item.request_challenge}
+                                  </div>
+                                </td>
+                              )}
 
                               {/* 12. SMS Text */}
-                              <td className="py-3 px-4 max-w-[200px]">
-                                <p className="text-slate-400 italic truncate text-[10px] line-clamp-1" title={item.sms_text || "بدون پیامک"}>
-                                  {item.sms_text || "—"}
-                                </p>
-                              </td>
+                              {!disabledSystemFields.includes("sms_text") && (
+                                <td className="py-3 px-4 max-w-[200px]">
+                                  <p className="text-slate-400 italic truncate text-[10px] line-clamp-1" title={item.sms_text || "بدون پیامک"}>
+                                    {item.sms_text || "—"}
+                                  </p>
+                                </td>
+                              )}
 
                               {/* 13. Operations column */}
                               <td className="py-3 px-3 text-center">

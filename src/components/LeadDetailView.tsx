@@ -52,6 +52,7 @@ interface TopCardConfig {
 
 const DEFAULT_TOP_CARDS: TopCardConfig[] = [
   { key: "created_at", label: "زمان ایجاد", visible: true },
+  { key: "updated_at", label: "زمان ویرایش", visible: true },
   { key: "referral", label: "ارجاع به", visible: true },
   { key: "status", label: "وضعیت", visible: true },
   { key: "industry", label: "صنعت", visible: true },
@@ -477,6 +478,15 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
           <>
             <span className="text-[9px] text-slate-400 block font-semibold mb-1">زمان ایجاد</span>
             <span className="text-[10.5px] font-mono font-bold text-slate-300 text-left line-clamp-1">{formatPersianDate(lead.created_at)}</span>
+          </>
+        );
+      case "updated_at":
+        return (
+          <>
+            <span className="text-[9px] text-slate-400 block font-semibold mb-1">زمان ویرایش</span>
+            <span className="text-[10.5px] font-mono font-bold text-slate-300 text-left line-clamp-1">
+              {formatPersianDate(lead.updated_at || lead.converted_at || lead.created_at)}
+            </span>
           </>
         );
       case "referral":
@@ -1026,12 +1036,27 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                       onDragStart={(e) => handleTopCardDragStart(e, key)}
                       onDragOver={handleTopCardDragOver}
                       onDrop={(e) => handleTopCardDrop(e, key)}
+                      onClick={() => {
+                        if (editingField === key) return;
+                        if (key === "created_at" || key === "updated_at") return;
+                        if (key === "status") {
+                          startInlineEdit(
+                            lead.module_type === "opportunity" ? "opportunity_status" : "lead_status",
+                            lead.module_type === "opportunity" ? (lead.opportunity_status || "") : lead.lead_status
+                          );
+                        } else {
+                          const val = (lead as any)[key] || "";
+                          startInlineEdit(key, typeof val === "boolean" ? String(val) : String(val));
+                        }
+                      }}
                       className={`p-2.5 rounded-xl border relative group text-right flex flex-col justify-between min-h-[58px] transition-all duration-150 ${
+                        key !== "created_at" && key !== "updated_at" ? "cursor-pointer hover:bg-slate-900/50 hover:border-white/10" : ""
+                      } ${
                         card.colSpan || ""
                       } ${
-                        isAdmin ? "cursor-grab active:cursor-grabbing hover:border-slate-700/60 bg-slate-900/40" : "border-white/5 bg-slate-900/20"
+                        isAdmin ? "cursor-grab active:cursor-grabbing hover:border-slate-700/60" : ""
                       } ${
-                        isTransitioning ? "opacity-30 border-dashed border-emerald-500 scale-[0.98] bg-slate-950" : "border-white/5"
+                        isTransitioning ? "opacity-30 border-dashed border-emerald-500 scale-[0.98] bg-slate-950" : "border-white/5 bg-slate-900/20"
                       }`}
                     >
                       {/* Drag handles indicators for admin */}

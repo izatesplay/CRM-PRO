@@ -29,6 +29,7 @@ export interface CustomFieldDefinition {
   label: string;
   type: "text" | "number" | "boolean" | "dropdown";
   enabled: boolean;
+  dropdown_category?: string; // Links dynamic fields to custom/existing dropdown categories
 }
 
 export interface Lead {
@@ -50,6 +51,7 @@ export interface Lead {
   payment_method?: string; // dropdown ID
   converted_at?: string; // ISO DateTime
   created_at: string;
+  updated_at?: string; // ISO DateTime for last manual modification
   is_starred?: boolean; // starred status indicator
   
   // Custom metadata fields added to match ERP layout screenshot
