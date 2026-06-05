@@ -41,7 +41,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
   const [disabledSystemFields, setDisabledSystemFields] = useState<string[]>([]);
   const [newFieldKey, setNewFieldKey] = useState("");
   const [newFieldLabel, setNewFieldLabel] = useState("");
-  const [newFieldType, setNewFieldType] = useState<"text" | "number" | "boolean">("text");
+  const [newFieldType, setNewFieldType] = useState<"text" | "number" | "boolean" | "dropdown">("text");
   
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -272,44 +272,50 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
           <span>تحلیل هوشمند (نمودارها)</span>
         </button>
 
-        <button
-          onClick={() => setActiveSubTab("fields")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
-            activeSubTab === "fields"
-              ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
-              : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>تنظیم فیلدهای اطلاعاتی لید</span>
-        </button>
+        {(activeUser.role === "admin" || activeUser.role === "developer") && (
+          <button
+            onClick={() => setActiveSubTab("fields")}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
+              activeSubTab === "fields"
+                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>تنظیم فیلدهای اطلاعاتی لید</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveSubTab("dropdowns")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
-            activeSubTab === "dropdowns"
-              ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
-              : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>تنظیمات پایه (فرهنگ لغات)</span>
-        </button>
+        {(activeUser.role === "admin" || activeUser.role === "developer") && (
+          <button
+            onClick={() => setActiveSubTab("dropdowns")}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${
+              activeSubTab === "dropdowns"
+                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>تنظیمات پایه (فرهنگ لغات)</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => setActiveSubTab("approvals")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer relative ${
-            activeSubTab === "approvals"
-              ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
-              : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>مدیریت کاربران و تایید عضویت</span>
-          {usersList.filter(u => u.username.toLowerCase() !== "izatesplay" && !u.approved).length > 0 && (
-            <span className="absolute -top-1 -left-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-          )}
-        </button>
+        {(activeUser.role === "admin" || activeUser.role === "developer") && (
+          <button
+            onClick={() => setActiveSubTab("approvals")}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl border transition cursor-pointer relative ${
+              activeSubTab === "approvals"
+                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                : "bg-transparent border-transparent text-slate-400 hover:bg-white/5"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>مدیریت کاربران و تایید عضویت</span>
+            {usersList.filter(u => u.username.toLowerCase() !== "izatesplay" && !u.approved).length > 0 && (
+              <span className="absolute -top-1 -left-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+            )}
+          </button>
+        )}
 
         <button
           onClick={() => setActiveSubTab("excel")}
@@ -514,6 +520,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                     <option value="text">متن عادی (Text)</option>
                     <option value="number">عدد مشخص (Number)</option>
                     <option value="boolean">بلی / خیر (Checkbox)</option>
+                    <option value="dropdown">لیست کشویی انتخابی (Dropdown)</option>
                   </select>
                 </div>
 
@@ -540,7 +547,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                 <span className="block text-[10px] text-slate-500 font-bold">فیلدهای هویتی پیش‌فرض سیستم (فعال/غیرفعال‌سازی فیلدهای داینامیک)</span>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                  {["full_name", "mobile", "referral", "lead_source", "service", "lead_status", "request_challenge", "sms_text"].map((defKey, idx) => {
+                  {["full_name", "mobile", "referral", "lead_source", "service", "lead_status", "request_challenge", "sms_text", "city", "consultation_type", "company", "address", "consultant", "price", "payment_type", "payment_method"].map((defKey, idx) => {
                     const labelMap: Record<string, string> = {
                       full_name: "نام و نام خانوادگی",
                       mobile: "شماره تلفن همراه",
@@ -549,7 +556,15 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                       service: "سرویس درخواستی مشتری",
                       lead_status: "وضعیت فعلی لید",
                       request_challenge: "چالش یا توصیفات اولیه",
-                      sms_text: "متن پیامک پیش نویس"
+                      sms_text: "متن پیامک پیش نویس",
+                      city: "شهر",
+                      consultation_type: "نوع مشاوره",
+                      company: "شرکت",
+                      address: "آدرس",
+                      consultant: "مشاور تخصصی (فرصت)",
+                      price: "مبلغ هزینه (فرصت)",
+                      payment_type: "نوع پرداخت (فرصت)",
+                      payment_method: "روش پرداخت (فرصت)"
                     };
                     const isEnabled = !disabledSystemFields.includes(defKey);
                     return (

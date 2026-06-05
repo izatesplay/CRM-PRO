@@ -113,7 +113,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
   const [draggedTopCardKey, setDraggedTopCardKey] = useState<string | null>(null);
   const [showCardsSetup, setShowCardsSetup] = useState<boolean>(false);
 
-  const isAdmin = activeUser.role === "admin" || activeUser.role === "developer" || activeUser.username.toLowerCase() === "izatesplay";
+  const isAdmin = activeUser.role === "admin" || activeUser.role === "supervisor" || activeUser.role === "developer" || activeUser.username.toLowerCase() === "izatesplay";
 
   // Load and sync Top Cards from local storage
   useEffect(() => {
@@ -175,6 +175,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
       "price",
       "payment_type",
       "payment_method",
+      "created_at",
       "converted_at"
     ];
 
@@ -1025,7 +1026,13 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
             {/* 2. Top Grid of Info Fields (Rounded cards, RTL layout, fully draggable and persistence-enabled) */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-3 mb-2 animate-fadeIn" id="detail-upper-field-cards">
               {topCards
-                .filter(card => card.visible)
+                .filter(card => {
+                  if (!card.visible) return false;
+                  let mapKey = card.key;
+                  if (card.key === "status") mapKey = "lead_status";
+                  if (disabledSystemFields.includes(mapKey)) return false;
+                  return true;
+                })
                 .map((card) => {
                   const key = card.key;
                   const isTransitioning = draggedTopCardKey === key;
@@ -1037,7 +1044,9 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                       onDragOver={handleTopCardDragOver}
                       onDrop={(e) => handleTopCardDrop(e, key)}
                       onClick={() => {
-                        if (editingField === key) return;
+                        const isCurrentlyEditingThis = editingField === key || 
+                          (key === "status" && (editingField === "opportunity_status" || editingField === "lead_status"));
+                        if (isCurrentlyEditingThis) return;
                         if (key === "created_at" || key === "updated_at") return;
                         if (key === "status") {
                           startInlineEdit(
@@ -1371,6 +1380,10 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
 
                 <div className="space-y-2.5 text-xs">
                   {fieldsOrder.map((key) => {
+                    let mapKey = key;
+                    if (key === "lead_status_field") mapKey = "lead_status";
+                    if (disabledSystemFields.includes(mapKey)) return null;
+
                     // 1. full_name
                     if (key === "full_name") {
                       if (disabledSystemFields.includes("full_name")) return null;
@@ -1397,7 +1410,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-100 font-black">{lead.full_name || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("full_name", lead.full_name)}
+                                className="text-slate-100 font-black cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.full_name || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1437,7 +1455,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-blue-500 font-mono font-bold tracking-wide">{lead.mobile || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("mobile", lead.mobile)}
+                                className="text-blue-500 font-mono font-bold tracking-wide cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.mobile || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1453,6 +1476,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 3. city
                     if (key === "city") {
+                      if (disabledSystemFields.includes("city")) return null;
                       return (
                         <div 
                           key="city"
@@ -1476,7 +1500,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.city || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("city", lead.city || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.city || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1491,6 +1520,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 4. consultation_type
                     if (key === "consultation_type") {
+                      if (disabledSystemFields.includes("consultation_type")) return null;
                       return (
                         <div 
                           key="consultation_type"
@@ -1514,7 +1544,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.consultation_type || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("consultation_type", lead.consultation_type || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.consultation_type || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1554,7 +1589,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <p className="text-slate-300 font-semibold leading-relaxed break-words">{lead.request_challenge || "—"}</p>
+                              <p 
+                                onClick={() => startInlineEdit("request_challenge", lead.request_challenge)}
+                                className="text-slate-300 font-semibold leading-relaxed break-words cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded p-1 transition-all w-full block"
+                              >
+                                {lead.request_challenge || "—"}
+                              </p>
                             )}
                           </div>
                           <button 
@@ -1569,6 +1609,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 6. company
                     if (key === "company") {
+                      if (disabledSystemFields.includes("company")) return null;
                       return (
                         <div 
                           key="company"
@@ -1592,7 +1633,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.company || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("company", lead.company || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.company || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1607,6 +1653,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 7. address
                     if (key === "address") {
+                      if (disabledSystemFields.includes("address")) return null;
                       return (
                         <div 
                           key="address"
@@ -1630,7 +1677,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold text-slate-300 limit-lines-1">{lead.address || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("address", lead.address || "")}
+                                className="text-slate-300 font-bold text-slate-300 limit-lines-1 cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.address || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1672,7 +1724,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 ))}
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold">{getLabel(lead.consultant) || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("consultant", lead.consultant || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {getLabel(lead.consultant) || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1714,7 +1771,10 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold font-mono text-emerald-400">
+                              <span 
+                                onClick={() => startInlineEdit("price", String(lead.price || ""))}
+                                className="text-slate-300 font-bold font-mono text-emerald-400 cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
                                 {lead.price ? Number(lead.price).toLocaleString("fa-IR") + " ریال" : "—"}
                               </span>
                             )}
@@ -1758,7 +1818,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 ))}
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold">{getLabel(lead.payment_type) || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("payment_type", lead.payment_type || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {getLabel(lead.payment_type) || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1800,7 +1865,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 ))}
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold">{getLabel(lead.payment_method) || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("payment_method", lead.payment_method || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {getLabel(lead.payment_method) || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1847,7 +1917,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                           <div className="flex-1 flex items-center justify-start gap-1">
                             {isAdmin && <GripVertical className="w-3.5 h-3.5 text-slate-500 ml-1 cursor-grab" />}
                             <span className="text-slate-400 font-semibold select-none w-28">زمان ویرایش:</span>
-                            <span className="text-slate-300 font-mono font-bold text-xs">{formatPersianDate(lead.converted_at || lead.created_at)}</span>
+                            <span className="text-slate-300 font-mono font-bold text-xs">{formatPersianDate(lead.updated_at || lead.converted_at || lead.created_at)}</span>
                           </div>
                         </div>
                       );
@@ -1855,6 +1925,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 14. referral
                     if (key === "referral") {
+                      if (disabledSystemFields.includes("referral")) return null;
                       return (
                         <div 
                           key="referral"
@@ -1881,7 +1952,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 ))}
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold">{getLabel(lead.referral) || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("referral", lead.referral || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {getLabel(lead.referral) || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -1896,6 +1972,7 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                     
                     // 15. lead_status_field
                     if (key === "lead_status_field") {
+                      if (disabledSystemFields.includes("lead_status")) return null;
                       return (
                         <div 
                           key="lead_status_field"
@@ -1922,14 +1999,15 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                       <option key={s.id} value={s.id}>{s.label}</option>
                                     ))}
                                   </select>
-                                ) : (
-                                  <span 
-                                    className="px-2 py-0.5 rounded text-[10px] font-black text-white text-center cursor-default inline-block"
-                                    style={{ backgroundColor: getColor(lead.opportunity_status) + "25", color: getColor(lead.opportunity_status), border: `1px solid ${getColor(lead.opportunity_status)}20` }}
-                                  >
-                                    {getLabel(lead.opportunity_status)}
-                                  </span>
-                                )}
+                            ) : (
+                              <span 
+                                onClick={() => startInlineEdit("opportunity_status", lead.opportunity_status || "")}
+                                className="px-2 py-0.5 rounded text-[10px] font-black text-white text-center cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 inline-block transition-all"
+                                style={{ backgroundColor: getColor(lead.opportunity_status) + "25", color: getColor(lead.opportunity_status), border: `1px solid ${getColor(lead.opportunity_status)}20` }}
+                              >
+                                {getLabel(lead.opportunity_status)}
+                              </span>
+                            )}
                               </div>
                               <button 
                                 onClick={() => startInlineEdit("opportunity_status", lead.opportunity_status || "")}
@@ -1955,14 +2033,15 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                       <option key={s.id} value={s.id}>{s.label}</option>
                                     ))}
                                   </select>
-                                ) : (
-                                  <span 
-                                    className="px-2 py-0.5 rounded text-[10px] font-black text-white text-center cursor-default inline-block"
-                                    style={{ backgroundColor: getColor(lead.lead_status) + "25", color: getColor(lead.lead_status), border: `1px solid ${getColor(lead.lead_status)}20` }}
-                                  >
-                                    {getLabel(lead.lead_status)}
-                                  </span>
-                                )}
+                            ) : (
+                              <span 
+                                onClick={() => startInlineEdit("lead_status", lead.lead_status)}
+                                className="px-2 py-0.5 rounded text-[10px] font-black text-white text-center cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 inline-block transition-all"
+                                style={{ backgroundColor: getColor(lead.lead_status) + "25", color: getColor(lead.lead_status), border: `1px solid ${getColor(lead.lead_status)}20` }}
+                              >
+                                {getLabel(lead.lead_status)}
+                              </span>
+                            )}
                               </div>
                               <button 
                                 onClick={() => startInlineEdit("lead_status", lead.lead_status)}
@@ -2001,7 +2080,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.industry || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("industry", lead.industry || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.industry || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -2043,7 +2127,8 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                               </select>
                             ) : (
                               <span 
-                                className="px-2 py-0.5 rounded text-[10px] font-bold"
+                                onClick={() => startInlineEdit("lead_source", lead.lead_source)}
+                                className="px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 transition-all inline-block"
                                 style={{ backgroundColor: getColor(lead.lead_source) + "25", color: getColor(lead.lead_source) }}
                               >
                                 {getLabel(lead.lead_source)}
@@ -2085,7 +2170,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-mono font-bold">{lead.telephone || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("telephone", lead.telephone || "")}
+                                className="text-slate-300 font-mono font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.telephone || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -2123,7 +2213,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.consultation_topic || "—"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("consultation_topic", lead.consultation_topic || "")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.consultation_topic || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -2162,7 +2257,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 <option value="yes">بله</option>
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold">{lead.send_sms_unanswered === "yes" ? "بله" : "خیر"}</span>
+                              <span 
+                                onClick={() => startInlineEdit("send_sms_unanswered", lead.send_sms_unanswered || "no")}
+                                className="text-slate-300 font-bold cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {lead.send_sms_unanswered === "yes" ? "بله" : "خیر"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -2203,7 +2303,8 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                               </select>
                             ) : (
                               <span 
-                                className="px-2 py-0.5 rounded text-[10px] font-black text-white inline-block"
+                                onClick={() => startInlineEdit("service", lead.service)}
+                                className="px-2 py-0.5 rounded text-[10px] font-black text-white inline-block cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 transition-all"
                                 style={{ backgroundColor: getColor(lead.service) + "25", color: getColor(lead.service), border: `1px solid ${getColor(lead.service)}15` }}
                               >
                                 {getLabel(lead.service)}
@@ -2248,7 +2349,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 ))}
                               </select>
                             ) : (
-                              <span className="text-slate-300 font-bold truncate block max-w-[150px]">{getLabel(lead.sub_service)}</span>
+                              <span 
+                                onClick={() => startInlineEdit("sub_service", lead.sub_service)}
+                                className="text-slate-300 font-bold truncate block max-w-[150px] cursor-pointer hover:text-emerald-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {getLabel(lead.sub_service) || "—"}
+                              </span>
                             )}
                           </div>
                           <button 
@@ -2326,7 +2432,12 @@ export default function LeadDetailView({ lead, activeUser, onChanged, onClose }:
                                 />
                               )
                             ) : (
-                              <span className="text-slate-100 font-black">{displayVal}</span>
+                              <span 
+                                onClick={() => startInlineEdit(customField.key, customField.type === "boolean" ? String(val ?? "") : (val as string))}
+                                className="text-slate-100 font-black cursor-pointer hover:text-indigo-400 hover:bg-slate-800/40 rounded px-1 transition-all"
+                              >
+                                {displayVal}
+                              </span>
                             )}
                           </div>
                           <button 

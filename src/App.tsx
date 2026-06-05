@@ -89,33 +89,10 @@ export default function App() {
   const [colFilterSms, setColFilterSms] = useState("");
 
   // Consultant/SalesExpert historical month selection state
-  const [historicalSelectedMonth, setHistoricalSelectedMonth] = useState("2026-05");
+  const [historicalSelectedMonth, setHistoricalSelectedMonth] = useState("2026-06");
 
   // Track disabled system fields dynamically to hide them from tables and forms
   const [disabledSystemFields, setDisabledSystemFields] = useState<string[]>([]);
-
-  // 12 months successful sales bar chart data helper
-  const chartData = useMemo(() => {
-    const factor = activeUser ? (activeUser.full_name.length % 3 + 1) : 1; 
-    return [
-      { month: "تیر", amount: 45 * factor, count: 1 + factor },
-      { month: "مرداد", amount: 62 * factor, count: 2 + factor },
-      { month: "شهریور", amount: 55 * factor, count: 2 + factor },
-      { month: "مهر", amount: 90 * factor, count: 3 + factor },
-      { month: "آبان", amount: 110 * factor, count: 4 + factor },
-      { month: "آذر", amount: 85 * factor, count: 3 + factor },
-      { month: "دی", amount: 130 * factor, count: 5 + factor },
-      { month: "بهمن", amount: 160 * factor, count: 6 + factor },
-      { month: "اسفند", amount: 220 * factor, count: 8 + factor },
-      { month: "فروردین", amount: 120 * factor, count: 4 + factor },
-      { month: "اردیبهشت", amount: 190 * factor, count: 7 + factor },
-      { month: "خرداد", amount: 240 * factor, count: 9 + factor },
-    ].map(item => ({
-      ...item,
-      amount: item.amount,
-      count: item.count,
-    }));
-  }, [activeUser]);
 
   // Modal & Slide-over states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -319,6 +296,9 @@ export default function App() {
   // Bulk actions on selected rows
   const handleBulkDelete = () => {
     if (selectedRowIds.length === 0) return;
+    if (activeUser.role !== "admin" && activeUser.role !== "supervisor" && activeUser.role !== "developer") {
+      return;
+    }
     setModalConfirmAction({
       message: `آیا از حذف گروهی و دائم ${selectedRowIds.length} پرونده کلاینت انتخاب‌شده اطمینان کامل دارید؟ این عمل غیر قابل بازگشت خواهد بود.`,
       onConfirm: () => {
@@ -370,6 +350,9 @@ export default function App() {
   };
 
   const handleDeleteLead = (id: string) => {
+    if (activeUser?.role !== "admin" && activeUser?.role !== "supervisor" && activeUser?.role !== "developer") {
+      return;
+    }
     setModalConfirmAction({
       message: "آیا از حذف دائم و غیرقابل بازگشت پرونده این کلاینت اطمینان دارید؟ تمامی یادداشت‌ها و پیگیری‌های متصله نیز پاک خواهند شد.",
       onConfirm: () => {
@@ -510,6 +493,49 @@ export default function App() {
   };
 
   const userReferralId = getActiveUserReferralId();
+
+  // 12 months successful sales bar chart data helper
+  const chartData = useMemo(() => {
+    // Generate the last 12 months ending in June 2026
+    const monthsConfigList = [
+      { key: "2025-07", label: "تیر ۱۴۰۴" },
+      { key: "2025-08", label: "مرداد ۱۴۰۴" },
+      { key: "2025-09", label: "شهریور ۱۴۰۴" },
+      { key: "2025-10", label: "مهر ۱۴۰۴" },
+      { key: "2025-11", label: "آبان ۱۴۰۴" },
+      { key: "2025-12", label: "آذر ۱۴۰۴" },
+      { key: "2026-01", label: "دی ۱۴۰۴" },
+      { key: "2026-02", label: "بهمن ۱۴۰۴" },
+      { key: "2026-03", label: "اسفند ۱۴۰۴" },
+      { key: "2026-04", label: "فروردین ۱۴۰۵" },
+      { key: "2026-05", label: "اردیبهشت ۱۴۰۵" },
+      { key: "2026-06", label: "خرداد ۱۴۰۵" },
+    ];
+
+    return monthsConfigList.map(({ key, label }) => {
+      // Find all opportunities won for this month belonging to the current user (if not admin/developer)
+      const monthLeads = leads.filter(l => {
+        const isOpp = l.module_type === "opportunity";
+        const isWon = l.opportunity_status === (wonStatusRef || "ost_4");
+        const belongsToUser = userReferralId ? l.referral === userReferralId : true;
+        const dateStr = l.converted_at || l.created_at;
+        return isOpp && isWon && belongsToUser && dateStr?.startsWith(key);
+      });
+      const totalAmount = monthLeads.reduce((sum, item) => sum + Number(item.price || 0), 0);
+      return {
+        month: label,
+        amount: totalAmount / 1000000, // Millions Toman
+        count: monthLeads.length,
+        key
+      };
+    });
+  }, [leads, userReferralId, wonStatusRef]);
+
+  // Selected Persian month label helper for UI texts
+  const selectedMonthLabel = useMemo(() => {
+    return chartData.find(item => item.key === historicalSelectedMonth)?.month || historicalSelectedMonth;
+  }, [chartData, historicalSelectedMonth]);
+
   const currentMonthYear = "2026-06"; // Static/Dynamic Month representing local 2026-06 environment time
 
   // Calculate high quality financial metrics and totals
@@ -862,7 +888,7 @@ export default function App() {
             فروش قسطی
           </button>
 
-          {(activeUser?.role === "admin" || activeUser?.role === "developer") && (
+          {(activeUser?.role === "admin" || activeUser?.role === "developer" || activeUser?.role === "supervisor") && (
             <button
               onClick={() => setActiveModule("management")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "management" ? "bg-amber-500/10 text-amber-300" : "text-slate-400"}`}
@@ -966,7 +992,7 @@ export default function App() {
               </p>
               <span className="text-[9px] text-slate-500">مکالمه‌ها، جلسات و فعالیت‌ها</span>
             </div>
-            <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+            <div className="p-3 bg-slate-900/20 text-amber-400 rounded-xl border border-white/5">
               <Clock className="w-5 h-5" />
             </div>
           </div>
@@ -986,13 +1012,14 @@ export default function App() {
                 <select
                   value={historicalSelectedMonth}
                   onChange={(e) => setHistoricalSelectedMonth(e.target.value)}
-                  className="bg-slate-950 border border-white/10 text-xs text-slate-200 py-1.5 px-3 rounded-lg cursor-pointer"
+                  className="bg-slate-950 border border-white/10 text-xs text-slate-200 py-1.5 px-3 rounded-lg cursor-pointer font-bold"
                   id="consultant-month-picker"
                 >
-                  <option value="2026-06">ژوئن ۲۰۲۶ (ماه جاری)</option>
-                  <option value="2026-05">مه ۲۰۲۶ (ماه گذشته)</option>
-                  <option value="2026-04">آوریل ۲۰۲۶</option>
-                  <option value="2026-03">مارس ۲۰۲۶</option>
+                  {chartData.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.month}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1020,7 +1047,7 @@ export default function App() {
                       />
                       <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={18}>
                         {chartData.map((entry, index) => (
-                           <Cell key={`cell-${index}`} fill={index === 11 ? "#34d399" : "#059669"} />
+                           <Cell key={`cell-${index}`} fill={entry.key === historicalSelectedMonth ? "#34d399" : "#059669"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -1031,7 +1058,7 @@ export default function App() {
               {/* Statistical numbers cards in vertical stack */}
               <div className="lg:col-span-1 flex flex-col justify-between gap-3">
                 <div className="p-3.5 bg-slate-900/40 rounded-xl border border-white/5 text-right flex-1 flex flex-col justify-center">
-                  <span className="text-[10px] text-slate-400 block font-bold mb-1">مجموع فروش در ماه {historicalSelectedMonth}</span>
+                  <span className="text-[10px] text-slate-400 block font-bold mb-1">مجموع فروش در ماه {selectedMonthLabel}</span>
                   <span className="text-sm font-black text-emerald-400 font-mono">
                     {historicalReport ? historicalReport.sumVal.toLocaleString("fa-IR") : "۰"} تومان
                   </span>
@@ -1083,7 +1110,7 @@ export default function App() {
               </div>
             ) : (
               <p className="text-[11px] text-slate-500 text-center py-4 bg-slate-900/10 rounded-xl border border-dashed border-white/5">
-                سند موفقی مبنی بر بسته شدن قرارداد به نام شما در ماه {historicalSelectedMonth} یافت نشد.
+                سند موفقی مبنی بر بسته شدن قرارداد به نام شما در ماه {selectedMonthLabel} یافت نشد.
               </p>
             )}
           </div>
@@ -1365,13 +1392,15 @@ export default function App() {
                         </div>
 
                         {/* Bulk Delete */}
-                        <button
-                          onClick={handleBulkDelete}
-                          className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold rounded-lg transition-all border border-rose-500/30 flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>حذف گروهی ({selectedRowIds.length})</span>
-                        </button>
+                        {(activeUser.role === "admin" || activeUser.role === "developer" || activeUser.role === "supervisor") && (
+                          <button
+                            onClick={handleBulkDelete}
+                            className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold rounded-lg transition-all border border-rose-500/30 flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>حذف گروهی ({selectedRowIds.length})</span>
+                          </button>
+                        )}
                         
                         {/* Clear Selection */}
                         <button
@@ -1761,8 +1790,8 @@ export default function App() {
                                     <Edit className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* Only Admin and Developer roles can delete leads to guard integrity */}
-                                  {(activeUser.role === "admin" || activeUser.role === "developer") && (
+                                  {/* Only Admin, Developer, and Supervisor roles can delete leads to guard integrity */}
+                                  {(activeUser.role === "admin" || activeUser.role === "developer" || activeUser.role === "supervisor") && (
                                     <button
                                       onClick={() => handleDeleteLead(item.id)}
                                       className="p-1 hover:bg-rose-50/15 text-rose-400 hover:text-rose-300 rounded transition cursor-pointer"
@@ -2007,8 +2036,8 @@ export default function App() {
                                 </button>
                               )}
 
-                              {/* Only Admin and Developer roles can delete leads to guard integrity */}
-                              {(activeUser.role === "admin" || activeUser.role === "developer") && (
+                              {/* Only Admin, Developer, and Supervisor roles can delete leads to guard integrity */}
+                              {(activeUser.role === "admin" || activeUser.role === "developer" || activeUser.role === "supervisor") && (
                                 <button
                                   onClick={() => handleDeleteLead(item.id)}
                                   className="p-1.5 hover:bg-rose-50 text-rose-700 rounded-lg cursor-pointer transition overflow-visible border border-rose-200 hover:border-rose-300"
@@ -2044,7 +2073,7 @@ export default function App() {
 
              {/* View 4: Consolidated Admin Management Panel */}
             {activeModule === "management" && (
-              (activeUser?.role === "admin" || activeUser?.role === "developer") ? (
+              (activeUser?.role === "admin" || activeUser?.role === "developer" || activeUser?.role === "supervisor") ? (
                 <ManagementPanel activeUser={activeUser} onRefreshData={handleRefresh} />
               ) : (
                 <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">

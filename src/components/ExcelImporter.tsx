@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { User, Lead } from "../types";
 import { CRMDatabase } from "../utils/db";
 import { Upload, HelpCircle, ArrowLeft, RefreshCw, Layers, CheckCircle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface ExcelImporterProps {
   activeUser: User;
@@ -117,13 +118,73 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      if (evt.target?.result) {
-        setRawText(String(evt.target.result));
-      }
-    };
-    reader.readAsText(file, "UTF-8");
+    const fileName = file.name.toLowerCase();
+    const isXlsx = fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv");
+
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const sheetData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" });
+          
+          if (sheetData.length === 0) {
+            setMessage("فایل بارگذاری شده خالی است یا فرمت نامعتبر دارد.");
+            return;
+          }
+
+          // Row 0 is the header
+          const rawHeaders = sheetData[0] || [];
+          const detectedHeaders = rawHeaders.map((h) => String(h || "").trim());
+
+          const allRowsParsed: ParsedRow[] = [];
+          for (let i = 1; i < sheetData.length; i++) {
+            const row = sheetData[i] || [];
+            const rowObj: ParsedRow = {};
+            detectedHeaders.forEach((_, colIdx) => {
+              rowObj[colIdx] = String(row[colIdx] ?? "").trim();
+            });
+            allRowsParsed.push(rowObj);
+          }
+
+          setHeaders(detectedHeaders);
+          setParsedRows(allRowsParsed);
+
+          // Dynamic Keyword intelligence - Try to pre-guess column indexes to save user time!
+          detectedHeaders.forEach((h, idx) => {
+            const hLower = h.toLowerCase();
+            if (hLower.includes("نام") || hLower.includes("name") || hLower.includes("مشتری")) {
+              setFullnameIndex(idx);
+            } else if (hLower.includes("تلفن") || hLower.includes("موبایل") || hLower.includes("mobile") || hLower.includes("phone")) {
+              setMobileIndex(idx);
+            } else if (hLower.includes("چالش") || hLower.includes("توضیح") || hLower.includes("شرح") || hLower.includes("challenge")) {
+              setChallengeIndex(idx);
+            } else if (hLower.includes("پیامک") || hLower.includes("sms")) {
+              setSmsIndex(idx);
+            }
+          });
+
+          if (statusList.length > 0) setDefaultStatus(statusList[0].id);
+
+          setStep("mapping");
+        } catch (error) {
+          console.error("Error parsing xlsx file via library:", error);
+          setMessage("خطا در خواندن فایل اکسل. لطفاً از درستی ساختار جداول مطمئن شوید.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if (evt.target?.result) {
+          setRawText(String(evt.target.result));
+        }
+      };
+      reader.readAsText(file, "UTF-8");
+    }
   };
 
   const handleExecuteImport = () => {
@@ -248,10 +309,10 @@ export default function ExcelImporter({ activeUser, onImportComplete, onCancel }
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <HelpCircle className="w-4 h-4 text-cyan-400" />
-                  <span>یا یک فایل متنی با فرمت کاما (csv) آپلود کنید:</span>
+                  <span>یا فایل اکسل (xlsx, xls) یا متنی (csv) آپلود کنید:</span>
                   <input
                     type="file"
-                    accept=".csv,.txt"
+                    accept=".xlsx,.xls,.csv,.txt"
                     onChange={handleFileUpload}
                     className="text-xs text-slate-400 bg-slate-900/50 p-1 rounded-lg border border-white/5 cursor-pointer"
                   />
