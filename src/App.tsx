@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { User, Lead, DropdownOption, Notification } from "./types";
 import { CRMDatabase } from "./utils/db";
 
@@ -20,6 +20,7 @@ import AnalysisDashboard from "./components/AnalysisDashboard";
 import ManagementPanel from "./components/ManagementPanel";
 import InstallmentSales from "./components/InstallmentSales";
 import DeveloperConsole from "./components/DeveloperConsole";
+import CallReports from "./components/CallReports";
 
 // Icons
 import {
@@ -53,12 +54,85 @@ import {
   XCircle,
   Check,
   ChevronDown,
-  Terminal
+  Terminal,
+  PhoneCall
 } from "lucide-react";
+
+interface SparklinePoint {
+  date: string;
+  dateStr: string;
+  value: number;
+}
+
+function KPISparkline({
+  data,
+  color,
+  id,
+  unit = "",
+}: {
+  data: SparklinePoint[];
+  color: string;
+  id: string;
+  unit?: string;
+}) {
+  const hasValues = data.some((d) => d.value > 0);
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+
+  return (
+    <div className="w-full mt-3 pt-2 border-t border-white/5 flex flex-col justify-end">
+      <div className="flex items-center justify-between text-[9px] text-slate-400 mb-1">
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse" style={{ backgroundColor: color }} />
+          <span>روند ۳۰ روز گذشته</span>
+        </span>
+        <span className="font-mono text-slate-300 text-[10px] font-semibold">
+          {hasValues ? `${total.toLocaleString("fa-IR")} ${unit}` : "بدون ثبت جدید"}
+        </span>
+      </div>
+      <div className="h-9 w-full min-w-0" dir="ltr">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+            <defs>
+              <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={color} stopOpacity={0.0} />
+              </linearGradient>
+            </defs>
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const item = payload[0].payload as SparklinePoint;
+                  return (
+                    <div className="bg-slate-950/95 border border-white/10 px-2 py-1 rounded-lg shadow-xl text-[9px] text-slate-200 text-right backdrop-blur-md">
+                      <div className="text-slate-400 font-mono text-[8px]">{item.dateStr}</div>
+                      <div className="font-bold text-white font-mono mt-0.5 flex items-center justify-between gap-2">
+                        <span>{item.value.toLocaleString("fa-IR")}</span>
+                        <span className="text-slate-400 text-[8px]">{unit}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={1.5}
+              fill={`url(#grad-${id})`}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [activeUser, setActiveUser] = useState<User | null>(null);
-  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import" | "analysis" | "management" | "installments" | "developer">("leads");
+  const [activeModule, setActiveModule] = useState<"leads" | "opportunities" | "calendar" | "dropdowns" | "import" | "analysis" | "management" | "installments" | "developer" | "reports">("leads");
 
   // Database lists
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -600,6 +674,105 @@ export default function App() {
   // Completion task trackers
   const pendingTasksCount = CRMDatabase.getActivities().filter((a) => !a.is_done).length;
 
+  // 30-Day Trend Data for Sparkline Charts inside KPI Cards
+  const kpiSparklineTrends = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+    // Check if there are leads within the last 30 days
+    const hasRecentLead = leads.some(l => {
+      const d = new Date(l.created_at || "");
+      return !isNaN(d.getTime()) && (now.getTime() - d.getTime()) <= thirtyDaysMs && (now.getTime() - d.getTime()) >= 0;
+    });
+
+    let endDate = now;
+    if (!hasRecentLead && leads.length > 0) {
+      // Find latest date in data to make sparklines accurately reflect historical dataset
+      const allTimes = leads
+        .map(l => new Date(l.created_at || "").getTime())
+        .filter(t => !isNaN(t) && t > 0);
+      if (allTimes.length > 0) {
+        endDate = new Date(Math.max(...allTimes));
+      }
+    }
+
+    // Build array of 30 days ending at endDate
+    const days: { dateStr: string; label: string }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(endDate.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayNum = d.getDate();
+      const monthNum = d.getMonth() + 1;
+      days.push({
+        dateStr,
+        label: `${monthNum}/${dayNum}`
+      });
+    }
+
+    const activities = CRMDatabase.getActivities();
+
+    const leadsData = days.map(({ dateStr, label }) => {
+      const count = leads.filter(l => {
+        const isLead = l.module_type === "lead";
+        const matchesUser = userReferralId ? l.referral === userReferralId : true;
+        const dStr = (l.created_at || "").slice(0, 10);
+        return isLead && matchesUser && dStr === dateStr;
+      }).length;
+      return { date: label, dateStr, value: count };
+    });
+
+    const oppsData = days.map(({ dateStr, label }) => {
+      const count = leads.filter(l => {
+        const isOpp = l.module_type === "opportunity";
+        const matchesUser = userReferralId ? l.referral === userReferralId : true;
+        const dStr = (l.converted_at || l.created_at || "").slice(0, 10);
+        return isOpp && matchesUser && dStr === dateStr;
+      }).length;
+      return { date: label, dateStr, value: count };
+    });
+
+    const potentialVolumeData = days.map(({ dateStr, label }) => {
+      const volume = leads.filter(l => {
+        const isOpp = l.module_type === "opportunity";
+        const matchesUser = userReferralId ? l.referral === userReferralId : true;
+        const dStr = (l.converted_at || l.created_at || "").slice(0, 10);
+        return isOpp && matchesUser && dStr === dateStr;
+      }).reduce((sum, item) => sum + Number(item.price || 0), 0);
+      return { date: label, dateStr, value: Math.round(volume / 1000000) }; // In Millions Toman
+    });
+
+    const wonSalesData = days.map(({ dateStr, label }) => {
+      const fieldKey = (priceFieldRef || "price") as keyof Lead;
+      const volume = leads.filter(l => {
+        const isOpp = l.module_type === "opportunity";
+        const isWon = l.opportunity_status === (wonStatusRef || "ost_4");
+        const matchesUser = userReferralId ? l.referral === userReferralId : true;
+        const dStr = (l.converted_at || l.created_at || "").slice(0, 10);
+        return isOpp && isWon && matchesUser && dStr === dateStr;
+      }).reduce((sum, item) => {
+        const priceVal = Number(item[fieldKey] ?? item.price ?? 0);
+        return sum + priceVal;
+      }, 0);
+      return { date: label, dateStr, value: Math.round(volume / 1000000) }; // In Millions Toman
+    });
+
+    const tasksData = days.map(({ dateStr, label }) => {
+      const count = activities.filter(a => {
+        const dStr = (a.scheduled_date || a.created_at || "").slice(0, 10);
+        return dStr === dateStr;
+      }).length;
+      return { date: label, dateStr, value: count };
+    });
+
+    return {
+      leads: leadsData,
+      opportunities: oppsData,
+      potentialVolume: potentialVolumeData,
+      wonSales: wonSalesData,
+      tasks: tasksData
+    };
+  }, [leads, userReferralId, wonStatusRef, priceFieldRef]);
+
   // Resolve category badges labels and hex coloring
   const getBadgeLabel = (id?: string) => {
     return dropdowns.find((d) => d.id === id)?.label || "-";
@@ -739,6 +912,23 @@ export default function App() {
               <Scale className="w-4 h-4 text-indigo-400" />
               <span>فروش اقساطی</span>
             </button>
+
+            {(activeUser?.role === "admin" || activeUser?.role === "supervisor" || activeUser?.role === "developer") && (
+              <button
+                onClick={() => {
+                  setActiveModule("reports");
+                  setSelectedLead(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-2 ${
+                  activeModule === "reports"
+                    ? "bg-teal-500/10 text-teal-300 border border-teal-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <PhoneCall className="w-4 h-4 text-teal-400" />
+                <span>گزارش‌گیری و تماس‌ها</span>
+              </button>
+            )}
           </nav>
 
           {/* User badge, alerts panel, and logout */}
@@ -888,6 +1078,15 @@ export default function App() {
             فروش قسطی
           </button>
 
+          {(activeUser?.role === "admin" || activeUser?.role === "supervisor" || activeUser?.role === "developer") && (
+            <button
+              onClick={() => setActiveModule("reports")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${activeModule === "reports" ? "bg-teal-500/10 text-teal-300" : "text-slate-400"}`}
+            >
+              گزارش تماس‌ها
+            </button>
+          )}
+
           {(activeUser?.role === "admin" || activeUser?.role === "developer" || activeUser?.role === "supervisor") && (
             <button
               onClick={() => setActiveModule("management")}
@@ -924,77 +1123,92 @@ export default function App() {
         {/* Funnel Metrics & Analytics Grid Summary */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" id="stats-analytics-section">
           {/* Card 1: Leads */}
-          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between text-right shadow-sm">
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">مجموع سرنخ‌های متقاضی</span>
-              <p className="text-2xl font-black text-emerald-400 font-mono tracking-tight text-left">
-                {totalLeadsCount}
-              </p>
-              <span className="text-[9px] text-slate-500">کارنال اول فرآیند فروش سازمان</span>
+          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col justify-between text-right shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">مجموع سرنخ‌های متقاضی</span>
+                <p className="text-2xl font-black text-emerald-400 font-mono tracking-tight text-left">
+                  {totalLeadsCount}
+                </p>
+                <span className="text-[9px] text-slate-500">کانال اول فرآیند فروش سازمان</span>
+              </div>
+              <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                <Users className="w-5 h-5" />
+              </div>
             </div>
-            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-              <Users className="w-5 h-5" />
-            </div>
+            <KPISparkline data={kpiSparklineTrends.leads} color="#10b981" id="kpi-leads" unit="سرنخ" />
           </div>
 
           {/* Card 2: Active Opportunities */}
-          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between text-right shadow-sm">
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">فرصت‌های فعال معامله</span>
-              <p className="text-2xl font-black text-cyan-400 font-mono tracking-tight text-left">
-                {totalOpportunitiesCount}
-              </p>
-              <span className="text-[9px] text-slate-500">پرونده‌های فعال مذاکره و پیش‌فاکتور</span>
+          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col justify-between text-right shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">فرصت‌های فعال معامله</span>
+                <p className="text-2xl font-black text-cyan-400 font-mono tracking-tight text-left">
+                  {totalOpportunitiesCount}
+                </p>
+                <span className="text-[9px] text-slate-500">پرونده‌های فعال مذاکره و پیش‌فاکتور</span>
+              </div>
+              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
+                <Briefcase className="w-5 h-5" />
+              </div>
             </div>
-            <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
-              <Briefcase className="w-5 h-5" />
-            </div>
+            <KPISparkline data={kpiSparklineTrends.opportunities} color="#06b6d4" id="kpi-opps" unit="فرصت" />
           </div>
 
           {/* Card 3: Sum value volume in Tomans */}
-          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between text-right shadow-sm">
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">مبلغ فروش بالقوه</span>
-              <p className="text-xl font-black font-mono tracking-tight text-left text-slate-100">
-                {totalPriceVolume.toLocaleString("fa-IR")}
-              </p>
-              <span className="text-[9px] text-cyan-400 font-medium">تومان ایران (ریال معادل شده)</span>
+          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col justify-between text-right shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">مبلغ فروش بالقوه</span>
+                <p className="text-xl font-black font-mono tracking-tight text-left text-slate-100">
+                  {totalPriceVolume.toLocaleString("fa-IR")}
+                </p>
+                <span className="text-[9px] text-cyan-400 font-medium">تومان ایران (ریال معادل شده)</span>
+              </div>
+              <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                <TrendingUp className="w-5 h-5" />
+              </div>
             </div>
-            <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
-              <TrendingUp className="w-5 h-5" />
-            </div>
+            <KPISparkline data={kpiSparklineTrends.potentialVolume} color="#a855f7" id="kpi-potential" unit="م.تومان" />
           </div>
 
           {/* Card 4: Monthly Confirmed Won Sales of the User */}
-          <div className="glass-panel p-4 rounded-2xl border-white/5 flex items-center justify-between text-right shadow-sm border-amber-500/20 bg-amber-500/[0.02]">
-            <div>
-              <span className="text-[10px] text-amber-300 font-bold block mb-0.5 animate-pulse">
-                {userReferralId ? "مجموع فروش قطعی من (ماه جاری)" : "مجموع فروش کل تیم (ماه جاری)"}
-              </span>
-              <p className="text-xl font-black font-mono tracking-tight text-left text-amber-400">
-                {userMonthlyConfirmedSales.toLocaleString("fa-IR")}
-              </p>
-              <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
-                هدف: « {getBadgeLabel(wonStatusRef || "ost_4")} »
-              </span>
+          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col justify-between text-right shadow-sm border-amber-500/20 bg-amber-500/[0.02]">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] text-amber-300 font-bold block mb-0.5 animate-pulse">
+                  {userReferralId ? "مجموع فروش قطعی من (ماه جاری)" : "مجموع فروش کل تیم (ماه جاری)"}
+                </span>
+                <p className="text-xl font-black font-mono tracking-tight text-left text-amber-400">
+                  {userMonthlyConfirmedSales.toLocaleString("fa-IR")}
+                </p>
+                <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
+                  هدف: « {getBadgeLabel(wonStatusRef || "ost_4")} »
+                </span>
+              </div>
+              <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                <CheckCircle className="w-5 h-5" />
+              </div>
             </div>
-            <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-              <CheckCircle className="w-5 h-5" />
-            </div>
+            <KPISparkline data={kpiSparklineTrends.wonSales} color="#f59e0b" id="kpi-won" unit="م.تومان" />
           </div>
 
           {/* Card 5: Action Tasks */}
-          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between text-right shadow-sm">
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">وظایف و پیگیری کارهای باز</span>
-              <p className="text-2xl font-black text-amber-400 font-mono tracking-tight text-left">
-                {pendingTasksCount}
-              </p>
-              <span className="text-[9px] text-slate-500">مکالمه‌ها، جلسات و فعالیت‌ها</span>
+          <div className="glass-panel p-4 rounded-2xl border border-white/5 flex flex-col justify-between text-right shadow-sm">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">وظایف و پیگیری کارهای باز</span>
+                <p className="text-2xl font-black text-amber-400 font-mono tracking-tight text-left">
+                  {pendingTasksCount}
+                </p>
+                <span className="text-[9px] text-slate-500">مکالمه‌ها، جلسات و فعالیت‌ها</span>
+              </div>
+              <div className="p-3 bg-slate-900/20 text-amber-400 rounded-xl border border-white/5">
+                <Clock className="w-5 h-5" />
+              </div>
             </div>
-            <div className="p-3 bg-slate-900/20 text-amber-400 rounded-xl border border-white/5">
-              <Clock className="w-5 h-5" />
-            </div>
+            <KPISparkline data={kpiSparklineTrends.tasks} color="#818cf8" id="kpi-tasks" unit="فعالیت" />
           </div>
         </section>
 
@@ -2094,6 +2308,24 @@ export default function App() {
               ) : (
                 <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
                   ⚠️ خطای دسترسی صادر شد. کلاینت شما نقش معتبر توسعه‌دهنده سیستم را ندارد.
+                </div>
+              )
+            )}
+
+            {/* View 7: Call & Consultant Performance Reports */}
+            {activeModule === "reports" && (
+              (activeUser?.role === "admin" || activeUser?.role === "supervisor" || activeUser?.role === "developer") ? (
+                <CallReports
+                  activeUser={activeUser}
+                  leads={leads}
+                  dropdowns={dropdowns}
+                  wonStatusRef={wonStatusRef}
+                  priceFieldRef={priceFieldRef}
+                  onRefreshData={handleRefresh}
+                />
+              ) : (
+                <div className="glass-panel p-8 text-center text-rose-500 font-extrabold border border-rose-500/10 rounded-2xl">
+                  ⚠️ شما دسترسی کافی به بخش گزارش‌گیری و تماس‌ها را ندارید. این بخش تنها برای مدیر، سرپرست و توسعه‌دهنده مجاز است.
                 </div>
               )
             )}

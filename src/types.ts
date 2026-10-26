@@ -20,6 +20,7 @@ export interface DropdownOption {
   label: string; // Persian label
   color: string; // Hex color code for badges
   parent_id?: string; // For hierarchical "sub_service" linked to "service"
+  extension?: string; // Internal extension number for consultant/agent (e.g. 251)
   sort_order: number;
 }
 
@@ -121,6 +122,7 @@ export interface User {
   role: "admin" | "consultant" | "supervisor" | "developer";
   password?: string;
   approved?: boolean;
+  extension?: string; // Internal extension number (e.g. 251)
 }
 
 export const CATEGORY_LABELS: Record<DropdownCategory, string> = {

@@ -36,6 +36,8 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
   const [editLabel, setEditLabel] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editParentId, setEditParentId] = useState("");
+  const [extension, setExtension] = useState("");
+  const [editExtension, setEditExtension] = useState("");
 
   const customDropdownFields = CRMDatabase.getCustomFields().filter(f => f.enabled && f.type === "dropdown");
   const mergedCategoryLabels: Record<string, string> = {
@@ -75,10 +77,12 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
       color,
       sort_order: currentOptions.length + 1,
       parent_id: activeCategory === "sub_service" ? parentId || undefined : undefined,
+      extension: (activeCategory === "consultant" || activeCategory === "referral") ? extension.trim() || undefined : undefined,
     });
 
     setLabel("");
     setParentId("");
+    setExtension("");
     onChanged();
   };
 
@@ -87,6 +91,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
     setEditLabel(opt.label);
     setEditColor(opt.color);
     setEditParentId(opt.parent_id || "");
+    setEditExtension(opt.extension || "");
   };
 
   const handleSaveEdit = (id: string) => {
@@ -95,6 +100,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
       label: editLabel.trim(),
       color: editColor,
       parent_id: activeCategory === "sub_service" ? editParentId || undefined : undefined,
+      extension: (activeCategory === "consultant" || activeCategory === "referral") ? editExtension.trim() || undefined : undefined,
     });
     setEditingId(null);
     onChanged();
@@ -229,6 +235,25 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
                 />
               </div>
 
+              {(activeCategory === "consultant" || activeCategory === "referral") && (
+                <div>
+                  <label className="block text-[11px] text-teal-400 font-bold mb-1.5">
+                    شماره داخلی پرسنل/کارشناس (Extension) *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="مثال: 251 یا 102"
+                    value={extension}
+                    onChange={(e) => setExtension(e.target.value)}
+                    className="w-full glass-input text-xs p-2.5 rounded-xl text-left font-mono border-teal-500/30 focus:border-teal-500"
+                    id="add-extension-input"
+                  />
+                  <span className="text-[9px] text-slate-400 mt-1 block">
+                    جهت تطبیق خودکار در گزارش‌گیری اکسل مرکز تماس
+                  </span>
+                </div>
+              )}
+
               {activeCategory === "sub_service" && (
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1.5">انتخاب سرویس والد ارتباطی *</label>
@@ -317,13 +342,23 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
                       className="p-3 bg-slate-900/20 hover:bg-slate-900/40 border border-white/5 rounded-xl flex items-center justify-between gap-4 transition-all"
                     >
                       {isEditing ? (
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-2 text-right">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 text-right">
                           <input
                             type="text"
                             value={editLabel}
                             onChange={(e) => setEditLabel(e.target.value)}
                             className="glass-input text-xs p-2 rounded-lg text-right"
+                            placeholder="نام گزینه"
                           />
+                          {(activeCategory === "consultant" || activeCategory === "referral") && (
+                            <input
+                              type="text"
+                              value={editExtension}
+                              onChange={(e) => setEditExtension(e.target.value)}
+                              className="glass-input text-xs p-2 rounded-lg text-left font-mono"
+                              placeholder="داخلی (مثلا 251)"
+                            />
+                          )}
                           {activeCategory === "sub_service" ? (
                             <select
                               value={editParentId}
@@ -338,7 +373,7 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
                               ))}
                             </select>
                           ) : (
-                            <div />
+                            !(activeCategory === "consultant" || activeCategory === "referral") && <div />
                           )}
                           <div className="flex items-center gap-2 pr-2">
                             <input
@@ -356,8 +391,13 @@ export default function DropdownManager({ onChanged }: DropdownManagerProps) {
                             className="w-3.5 h-3.5 rounded-full border border-white/10"
                             style={{ backgroundColor: opt.color }}
                           />
-                          <div>
+                          <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-slate-200">{opt.label}</span>
+                            {opt.extension && (
+                              <span className="text-[10px] bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-md border border-cyan-500/20 font-mono font-bold">
+                                داخلی: {opt.extension}
+                              </span>
+                            )}
                             {parentName && (
                               <span className="text-[9px] bg-emerald-500/10 text-emerald-300 px-1.5 py-0.5 rounded mr-2 border border-emerald-500/20 font-medium">
                                 والد: {parentName}

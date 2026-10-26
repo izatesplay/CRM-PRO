@@ -9,14 +9,15 @@ import { sha256 } from "./crypto";
 // Default seed data for Persian enterprise configuration
 const DEFAULT_DROPDOWNS: DropdownOption[] = [
   // Referral (ارجاع به)
-  { id: "ref_1", category: "referral", label: "محمد رضا فتح آبادی", color: "#06b6d4", sort_order: 1 },
-  { id: "ref_2", category: "referral", label: "مهتاب ناصری", color: "#10b981", sort_order: 2 },
-  { id: "ref_3", category: "referral", label: "علی سجادی", color: "#a855f7", sort_order: 3 },
+  { id: "ref_1", category: "referral", label: "محمد رضا فتح آبادی", color: "#06b6d4", extension: "251", sort_order: 1 },
+  { id: "ref_2", category: "referral", label: "مهتاب ناصری", color: "#10b981", extension: "252", sort_order: 2 },
+  { id: "ref_3", category: "referral", label: "علی سجادی", color: "#a855f7", extension: "253", sort_order: 3 },
   // Lead Source (منبع سرنخ)
   { id: "src_1", category: "lead_source", label: "تبلیغاتی پیامکی ETOT", color: "#f97316", sort_order: 1 },
   { id: "src_2", category: "lead_source", label: "کمپین اینستاگرام", color: "#ec4899", sort_order: 2 },
   { id: "src_3", category: "lead_source", label: "گوگل ادز / سئو", color: "#3b82f6", sort_order: 3 },
   { id: "src_4", category: "lead_source", label: "نمایشگاه بین‌المللی", color: "#f59e0b", sort_order: 4 },
+  { id: "src_divar", category: "lead_source", label: "دیوار", color: "#ef4444", sort_order: 5 },
   // Service (سرویس)
   { id: "srv_1", category: "service", label: "حقوقی", color: "#3b82f6", sort_order: 1 },
   { id: "srv_2", category: "service", label: "امور ثبتی", color: "#ec4899", sort_order: 2 },
@@ -37,9 +38,9 @@ const DEFAULT_DROPDOWNS: DropdownOption[] = [
   { id: "ost_4", category: "opportunity_status", label: "عقد نهایی قرارداد", color: "#06b6d4", sort_order: 4 },
   { id: "ost_5", category: "opportunity_status", label: "انصراف/معلق", color: "#6b7280", sort_order: 5 },
   // Consultant (مشاور)
-  { id: "con_1", category: "consultant", label: "جناب آقای مهندس حمیدی", color: "#3b82f6", sort_order: 1 },
-  { id: "con_2", category: "consultant", label: "سرکار خانم دکتر کریمی", color: "#10b981", sort_order: 2 },
-  { id: "con_3", category: "consultant", label: "جناب آقای دکتر یزدانی", color: "#f43f5e", sort_order: 3 },
+  { id: "con_1", category: "consultant", label: "جناب آقای مهندس حمیدی", color: "#3b82f6", extension: "101", sort_order: 1 },
+  { id: "con_2", category: "consultant", label: "سرکار خانم دکتر کریمی", color: "#10b981", extension: "102", sort_order: 2 },
+  { id: "con_3", category: "consultant", label: "جناب آقای دکتر یزدانی", color: "#f43f5e", extension: "103", sort_order: 3 },
   // Payment Type (نوع پرداخت)
   { id: "pty_1", category: "payment_type", label: "نقدی یک مرحله‌ای", color: "#10b981", sort_order: 1 },
   { id: "pty_2", category: "payment_type", label: "اقساطی ماهیانه", color: "#a855f7", sort_order: 2 },
@@ -51,10 +52,10 @@ const DEFAULT_DROPDOWNS: DropdownOption[] = [
 ];
 
 const DEFAULT_USERS: User[] = [
-  { id: "usr_dev", username: "Mohamad1378", full_name: "توسعه‌دهنده سیستم (Developer)", email: "mohamad1378@crm.com", role: "developer", password: "09386561626mM@", approved: true },
-  { id: "usr_1", username: "izatesplay", full_name: "مدیر ارشد سیستم", email: "admin@crm.com", role: "admin", password: "09386561626mM@", approved: true },
-  { id: "usr_2", username: "consultant", full_name: "خانم سارا خسروی", email: "sara@crm.com", role: "consultant", password: "123", approved: true },
-  { id: "usr_4", username: "supervisor", full_name: "مهندس علی کرمی (سرپرست)", email: "ali@crm.com", role: "supervisor", password: "123", approved: true },
+  { id: "usr_dev", username: "Mohamad1378", full_name: "توسعه‌دهنده سیستم (Developer)", email: "mohamad1378@crm.com", role: "developer", password: "09386561626mM@", approved: true, extension: "999" },
+  { id: "usr_1", username: "izatesplay", full_name: "مدیر ارشد سیستم", email: "admin@crm.com", role: "admin", password: "09386561626mM@", approved: true, extension: "200" },
+  { id: "usr_2", username: "consultant", full_name: "خانم سارا خسروی", email: "sara@crm.com", role: "consultant", password: "123", approved: true, extension: "202" },
+  { id: "usr_4", username: "supervisor", full_name: "مهندس علی کرمی (سرپرست)", email: "ali@crm.com", role: "supervisor", password: "123", approved: true, extension: "204" },
 ];
 
 const DEFAULT_LEADS: Lead[] = [
@@ -122,6 +123,42 @@ const DEFAULT_LEADS: Lead[] = [
     payment_method: "pm_1",
     converted_at: "2026-05-31T09:00:00Z",
     created_at: "2026-05-25T11:00:00Z"
+  },
+  {
+    id: "lead_divar_1",
+    full_name: "مهندس کامران خسروی (متقاضی دیوار)",
+    mobile: "09121196033",
+    referral: "ref_1",
+    consultant: "con_1",
+    lead_source: "src_divar",
+    service: "srv_1",
+    sub_service: "sub_1",
+    lead_status: "lst_1",
+    request_challenge: "استعلام سریع خدمات دعاوی ملکی ثبت‌شده از طریق آگهی دیوار سازمان.",
+    sms_text: "تماس موفق حاصل شد و ارزیابی پرونده انجام گرفت.",
+    module_type: "lead",
+    is_starred: true,
+    created_at: "2026-06-01T14:20:00Z"
+  },
+  {
+    id: "opp_won_1",
+    full_name: "سرکار خانم مهشید افشار",
+    mobile: "09123344556",
+    referral: "ref_1",
+    consultant: "con_1",
+    lead_source: "src_divar",
+    service: "srv_2",
+    sub_service: "sub_3",
+    lead_status: "lst_3",
+    request_challenge: "عقد قرارداد نهایی ثبت شرکت بین‌المللی و پرداخت کامل حق‌الوکاله.",
+    sms_text: "قرارداد امضا و واریز نقدی صورت پذیرفت.",
+    module_type: "opportunity",
+    opportunity_status: "ost_4",
+    price: 180000000,
+    payment_type: "pty_1", // نقدی یک مرحله‌ای
+    payment_method: "pm_3",
+    converted_at: "2026-06-01T16:30:00Z",
+    created_at: "2026-06-01T10:15:00Z"
   }
 ];
 
@@ -518,7 +555,53 @@ export class CRMDatabase {
 
   // Dropdown options
   static getDropdowns(): DropdownOption[] {
-    return this.get<DropdownOption[]>("dropdowns", DEFAULT_DROPDOWNS);
+    const list = this.get<DropdownOption[]>("dropdowns", DEFAULT_DROPDOWNS);
+    let changed = false;
+
+    if (!list.some(d => d.category === "lead_source" && (d.label.includes("دیوار") || d.id === "src_divar"))) {
+      const divarOpt: DropdownOption = {
+        id: "src_divar",
+        category: "lead_source",
+        label: "دیوار",
+        color: "#ef4444",
+        sort_order: 5
+      };
+      list.push(divarOpt);
+      changed = true;
+    }
+
+    // Ensure extensions are assigned to default agents in localStorage
+    list.forEach(d => {
+      if (d.label.includes("فتح آبادی") && !d.extension) {
+        d.extension = "251";
+        changed = true;
+      }
+      if (d.label.includes("ناصری") && !d.extension) {
+        d.extension = "252";
+        changed = true;
+      }
+      if (d.label.includes("سجادی") && !d.extension) {
+        d.extension = "253";
+        changed = true;
+      }
+      if (d.label.includes("حمیدی") && !d.extension) {
+        d.extension = "101";
+        changed = true;
+      }
+      if (d.label.includes("کریمی") && !d.extension) {
+        d.extension = "102";
+        changed = true;
+      }
+      if (d.label.includes("یزدانی") && !d.extension) {
+        d.extension = "103";
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      this.saveDropdowns(list);
+    }
+    return list;
   }
 
   static saveDropdowns(options: DropdownOption[]): void {

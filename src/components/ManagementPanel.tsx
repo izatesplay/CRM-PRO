@@ -390,6 +390,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                   <tr>
                     <th className="p-3">نام و نام خانوادگی</th>
                     <th className="p-3">نام کاربری</th>
+                    <th className="p-3 text-center">شماره داخلی</th>
                     <th className="p-3">پست الکترونیکی</th>
                     <th className="p-3">نقش سازمانی</th>
                     <th className="p-3">وضعیت تایید</th>
@@ -399,7 +400,7 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                 <tbody className="divide-y divide-white/5">
                   {usersList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-slate-500">هیچ کاربری در دیتابیس ثبت نشده است.</td>
+                      <td colSpan={7} className="p-6 text-center text-slate-500">هیچ کاربری در دیتابیس ثبت نشده است.</td>
                     </tr>
                   ) : (
                     usersList.map((usr) => {
@@ -411,6 +412,27 @@ export default function ManagementPanel({ activeUser, onRefreshData }: Managemen
                         <tr key={usr.id} className="hover:bg-slate-900/30 transition">
                           <td className="p-3 font-semibold text-slate-200">{usr.full_name}</td>
                           <td className="p-3 text-slate-400 font-mono text-[11px]">{usr.username}</td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="text"
+                              defaultValue={usr.extension || ""}
+                              placeholder="داخلی"
+                              onBlur={(e) => {
+                                const val = e.target.value.trim();
+                                if (val !== (usr.extension || "")) {
+                                  try {
+                                    CRMDatabase.updateUser(usr.id, { extension: val || undefined });
+                                    triggerNotify(`شماره داخلی ${usr.full_name} به روز شد.`);
+                                    loadData();
+                                  } catch (err) {
+                                    triggerNotify("خطا در به روزرسانی شماره داخلی", true);
+                                  }
+                                }
+                              }}
+                              className="w-16 bg-slate-950 border border-white/10 px-2 py-1 rounded text-center text-xs font-mono font-bold text-teal-300 focus:border-teal-500"
+                              title="برای ذخیره، پس از تغییر خارج شوید"
+                            />
+                          </td>
                           <td className="p-3 text-slate-400">{usr.email || "---"}</td>
                           <td className="p-3">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
